@@ -5,11 +5,7 @@ import 'package:zitface_mobile/screens/signup_screen.dart';
 
 void main() {
   testWidgets('signup screen renders its auth card', (tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(
-        home: SignUpScreen(),
-      ),
-    );
+    await tester.pumpWidget(const MaterialApp(home: SignUpScreen()));
 
     expect(find.text('Create an Account'), findsOneWidget);
     expect(find.text('Continue'), findsOneWidget);

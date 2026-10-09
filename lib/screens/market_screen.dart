@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'create_listing_screen.dart';
 
@@ -69,10 +70,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   Widget build(BuildContext context) {
     final filteredListings = _activeCategory == 'All'
         ? _listings
-        : _listings.where((item) => item['category'] == _activeCategory).toList();
+        : _listings
+              .where((item) => item['category'] == _activeCategory)
+              .toList();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0F),
+      backgroundColor: AppColors.pageBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -85,7 +88,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   const Text(
                     'Campus Market',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -98,17 +101,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         vertical: 8,
                       ),
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: AppColors.accent,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: const Row(
                         children: [
-                          Icon(Icons.add, color: Color(0xFF090A0F), size: 16),
+                          Icon(Icons.add, color: AppColors.onAccent, size: 16),
                           SizedBox(width: 4),
                           Text(
                             'Sell Item',
                             style: TextStyle(
-                              color: Color(0xFF090A0F),
+                              color: AppColors.onAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
                             ),
@@ -125,22 +128,37 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: AppColors.textPrimary.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(
+                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.search, color: Colors.white38, size: 20),
+                    Icon(
+                      Icons.search,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: TextField(
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Search books, laptops, electronics...',
-                          hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                          hintStyle: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
                           border: InputBorder.none,
                         ),
                       ),
@@ -176,24 +194,25 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.04),
+                            ? AppColors.textPrimary
+                            : AppColors.textPrimary.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.08),
+                              ? AppColors.textPrimary
+                              : AppColors.textPrimary.withValues(alpha: 0.08),
                         ),
                       ),
                       child: Text(
                         cat,
                         style: TextStyle(
                           color: isSelected
-                              ? const Color(0xFF090A0F)
-                              : Colors.white70,
+                              ? AppColors.onAccent
+                              : AppColors.textSecondary,
                           fontSize: 12,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -210,27 +229,35 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   ? const Center(
                       child: Text(
                         'No listings in this category yet.',
-                        style: TextStyle(color: Colors.white38, fontSize: 14),
+                        style: TextStyle(
+                          color: AppColors.textSecondary,
+                          fontSize: 14,
+                        ),
                       ),
                     )
                   : GridView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 2,
-                        crossAxisSpacing: 12,
-                        mainAxisSpacing: 12,
-                        childAspectRatio: 0.8,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 2,
+                            crossAxisSpacing: 12,
+                            mainAxisSpacing: 12,
+                            childAspectRatio: 0.8,
+                          ),
                       itemCount: filteredListings.length,
                       itemBuilder: (context, index) {
                         final item = filteredListings[index];
                         return Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.03),
+                            color: AppColors.textPrimary.withValues(
+                              alpha: 0.03,
+                            ),
                             borderRadius: BorderRadius.circular(18),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.06),
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.06,
+                              ),
                             ),
                           ),
                           child: Column(
@@ -241,13 +268,15 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 child: Container(
                                   width: double.infinity,
                                   decoration: BoxDecoration(
-                                    color: Colors.white.withValues(alpha: 0.05),
+                                    color: AppColors.textPrimary.withValues(
+                                      alpha: 0.05,
+                                    ),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: const Center(
                                     child: Icon(
                                       Icons.shopping_bag_outlined,
-                                      color: Colors.white38,
+                                      color: AppColors.textSecondary,
                                       size: 32,
                                     ),
                                   ),
@@ -260,7 +289,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: AppColors.textPrimary,
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -270,7 +299,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               Text(
                                 item['price']!,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: AppColors.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -278,19 +307,20 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               const SizedBox(height: 6),
 
                               Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
                                     item['seller']!,
                                     style: const TextStyle(
-                                      color: Colors.white38,
+                                      color: AppColors.textSecondary,
                                       fontSize: 10,
                                     ),
                                   ),
                                   Text(
                                     item['time']!,
                                     style: const TextStyle(
-                                      color: Colors.white24,
+                                      color: AppColors.textSecondary,
                                       fontSize: 9,
                                     ),
                                   ),

@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'chat_detail_screen.dart';
 
@@ -23,7 +24,7 @@ class MarketDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0F),
+      backgroundColor: AppColors.pageBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -38,13 +39,15 @@ class MarketDetailScreen extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: AppColors.textPrimary.withValues(alpha: 0.06),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.08),
+                        ),
                       ),
                       child: const Icon(
                         Icons.arrow_back_ios_new,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         size: 16,
                       ),
                     ),
@@ -52,13 +55,16 @@ class MarketDetailScreen extends StatelessWidget {
                   const Text(
                     'Marketplace Item',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.share_outlined, color: Colors.white70),
+                    icon: const Icon(
+                      Icons.share_outlined,
+                      color: AppColors.textSecondary,
+                    ),
                     onPressed: () {},
                   ),
                 ],
@@ -76,23 +82,25 @@ class MarketDetailScreen extends StatelessWidget {
                       height: 220,
                       width: double.infinity,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: AppColors.textPrimary.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.1),
+                        ),
                       ),
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           const Icon(
                             Icons.shopping_bag_outlined,
-                            color: Colors.white38,
+                            color: AppColors.textSecondary,
                             size: 54,
                           ),
                           const SizedBox(height: 8),
                           Text(
                             imageTag,
                             style: const TextStyle(
-                              color: Colors.white38,
+                              color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -111,7 +119,7 @@ class MarketDetailScreen extends StatelessWidget {
                           child: Text(
                             title,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -123,16 +131,20 @@ class MarketDetailScreen extends StatelessWidget {
                             vertical: 6,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.12),
+                            color: AppColors.textPrimary.withValues(
+                              alpha: 0.12,
+                            ),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.2),
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.2,
+                              ),
                             ),
                           ),
                           child: Text(
                             price,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontWeight: FontWeight.bold,
                               fontSize: 16,
                             ),
@@ -148,14 +160,14 @@ class MarketDetailScreen extends StatelessWidget {
                       children: [
                         const Icon(
                           Icons.location_on_outlined,
-                          color: Colors.white38,
+                          color: AppColors.textSecondary,
                           size: 16,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           location,
                           style: const TextStyle(
-                            color: Colors.white38,
+                            color: AppColors.textSecondary,
                             fontSize: 12,
                           ),
                         ),
@@ -163,16 +175,20 @@ class MarketDetailScreen extends StatelessWidget {
                     ),
 
                     const SizedBox(height: 20),
-                    Divider(color: Colors.white.withValues(alpha: 0.08)),
+                    Divider(
+                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                    ),
                     const SizedBox(height: 16),
 
                     // Seller Card Container
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.03),
+                        color: AppColors.textPrimary.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.06),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -180,13 +196,15 @@ class MarketDetailScreen extends StatelessWidget {
                             width: 40,
                             height: 40,
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.08),
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.08,
+                              ),
                               shape: BoxShape.circle,
                             ),
                             child: const Center(
                               child: Icon(
                                 Icons.person_outline,
-                                color: Colors.white,
+                                color: AppColors.textPrimary,
                                 size: 20,
                               ),
                             ),
@@ -199,7 +217,7 @@ class MarketDetailScreen extends StatelessWidget {
                                 Text(
                                   seller,
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.textPrimary,
                                     fontSize: 14,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -208,7 +226,7 @@ class MarketDetailScreen extends StatelessWidget {
                                 const Text(
                                   'CBU Student Seller',
                                   style: TextStyle(
-                                    color: Colors.white38,
+                                    color: AppColors.textSecondary,
                                     fontSize: 11,
                                   ),
                                 ),
@@ -219,7 +237,9 @@ class MarketDetailScreen extends StatelessWidget {
                             onPressed: () {},
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
-                                color: Colors.white.withValues(alpha: 0.2),
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.2,
+                                ),
                               ),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),
@@ -228,7 +248,7 @@ class MarketDetailScreen extends StatelessWidget {
                             child: const Text(
                               'Profile',
                               style: TextStyle(
-                                color: Colors.white,
+                                color: AppColors.textPrimary,
                                 fontSize: 12,
                               ),
                             ),
@@ -243,7 +263,7 @@ class MarketDetailScreen extends StatelessWidget {
                     const Text(
                       'Description',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
@@ -252,7 +272,7 @@ class MarketDetailScreen extends StatelessWidget {
                     Text(
                       description,
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.7),
+                        color: AppColors.textPrimary.withValues(alpha: 0.7),
                         fontSize: 13,
                         height: 1.4,
                       ),
@@ -266,9 +286,11 @@ class MarketDetailScreen extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.03),
+                color: AppColors.textPrimary.withValues(alpha: 0.03),
                 border: Border(
-                  top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                  top: BorderSide(
+                    color: AppColors.textPrimary.withValues(alpha: 0.06),
+                  ),
                 ),
               ),
               child: ElevatedButton.icon(
@@ -287,8 +309,8 @@ class MarketDetailScreen extends StatelessWidget {
                 icon: const Icon(Icons.chat_bubble_outline, size: 18),
                 label: Text('Message $seller'),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF090A0F),
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: AppColors.onAccent,
                   minimumSize: const Size(double.infinity, 48),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(24),

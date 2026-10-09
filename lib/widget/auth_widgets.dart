@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class AuthBackground extends StatelessWidget {
@@ -9,7 +10,7 @@ class AuthBackground extends StatelessWidget {
     return Container(
       width: double.infinity,
       height: double.infinity,
-      color: const Color(0xFF0A0F0D), // Pure Dynamic Dark Pro Base
+      color: AppColors.pageBackground,
       child: SafeArea(
         child: Container(
           width: double.infinity,
@@ -19,7 +20,7 @@ class AuthBackground extends StatelessWidget {
               center: Alignment.topRight,
               radius: 1.4,
               colors: [
-                const Color(0xFF11382B).withValues(alpha: 0.35), // Deep emerald glow
+                AppColors.accent.withValues(alpha: 0.05),
                 Colors.transparent,
               ],
             ),
@@ -41,12 +42,14 @@ class AuthCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
       decoration: BoxDecoration(
-        color: const Color(0xFF141A17).withValues(alpha: 0.7), // Solid Dark Pro surface
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)), // Subtle glass lip
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.08),
+        ), // Subtle glass lip
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.4),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 30,
             offset: const Offset(0, 15),
           ),
@@ -69,7 +72,7 @@ class ZitFaceLogo extends StatelessWidget {
         style: TextStyle(
           fontSize: 28,
           fontWeight: FontWeight.w900,
-          color: Colors.white,
+          color: AppColors.textPrimary,
           letterSpacing: 1.5,
         ),
       ),
@@ -82,7 +85,12 @@ class SocialAuthButton extends StatelessWidget {
   final Widget icon;
   final VoidCallback onTap;
 
-  const SocialAuthButton({super.key, required this.label, required this.icon, required this.onTap});
+  const SocialAuthButton({
+    super.key,
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -90,17 +98,28 @@ class SocialAuthButton extends StatelessWidget {
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          backgroundColor: const Color(0xFF1E2622),
-          side: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          backgroundColor: AppColors.secondarySurface,
+          side: BorderSide(
+            color: AppColors.textPrimary.withValues(alpha: 0.05),
+          ),
           padding: const EdgeInsets.symmetric(vertical: 14),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             icon,
             const SizedBox(width: 8),
-            Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 14)),
+            Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontWeight: FontWeight.w600,
+                fontSize: 14,
+              ),
+            ),
           ],
         ),
       ),
@@ -115,12 +134,19 @@ class OrDivider extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.08))),
+        Expanded(
+          child: Divider(color: AppColors.textPrimary.withValues(alpha: 0.08)),
+        ),
         const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12),
-          child: Text('Or', style: TextStyle(color: Colors.white38, fontSize: 12)),
+          child: Text(
+            'Or',
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+          ),
         ),
-        Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.08))),
+        Expanded(
+          child: Divider(color: AppColors.textPrimary.withValues(alpha: 0.08)),
+        ),
       ],
     );
   }
@@ -145,19 +171,33 @@ class AuthTextField extends StatelessWidget {
     return TextField(
       controller: controller,
       obscureText: obscure,
-      style: const TextStyle(color: Colors.white, fontSize: 14),
+      style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.4), fontSize: 14),
+        hintStyle: TextStyle(
+          color: AppColors.textPrimary.withValues(alpha: 0.4),
+          fontSize: 14,
+        ),
         filled: true,
-        fillColor: const Color(0xFF1A221E),
+        fillColor: AppColors.secondarySurface,
         suffixIcon: suffix,
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 20,
+          vertical: 16,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(16),
+          borderSide: BorderSide.none,
+        ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: const Color(0xFF1F5C43).withValues(alpha: 0.6)),
+          borderSide: BorderSide(
+            color: AppColors.accent.withValues(alpha: 0.6),
+          ),
         ),
       ),
     );
@@ -168,7 +208,11 @@ class GradientAuthButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const GradientAuthButton({super.key, required this.label, required this.onTap});
+  const GradientAuthButton({
+    super.key,
+    required this.label,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +221,9 @@ class GradientAuthButton extends StatelessWidget {
       height: 52,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(16),
-        gradient: const LinearGradient(colors: [Color(0xFF134D35), Color(0xFF1F5C43)]),
+        gradient: const LinearGradient(
+          colors: [AppColors.accent, Color(0xFF0860E8)],
+        ),
       ),
       child: Material(
         color: Colors.transparent,
@@ -185,7 +231,14 @@ class GradientAuthButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(16),
           onTap: onTap,
           child: Center(
-            child: Text(label, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.onAccent,
+                fontWeight: FontWeight.bold,
+                fontSize: 15,
+              ),
+            ),
           ),
         ),
       ),
@@ -203,9 +256,26 @@ class AuthFooter extends StatelessWidget {
       child: Text.rich(
         TextSpan(
           children: [
-            TextSpan(text: 'Terms of Service', style: TextStyle(decoration: TextDecoration.underline, color: Colors.white.withValues(alpha: 0.4))),
-            TextSpan(text: '  |  ', style: TextStyle(color: Colors.white.withValues(alpha: 0.2))),
-            TextSpan(text: 'Privacy Policy', style: TextStyle(decoration: TextDecoration.underline, color: Colors.white.withValues(alpha: 0.4))),
+            TextSpan(
+              text: 'Terms of Service',
+              style: TextStyle(
+                decoration: TextDecoration.underline,
+                color: AppColors.textPrimary.withValues(alpha: 0.4),
+              ),
+            ),
+            TextSpan(
+              text: '  |  ',
+              style: TextStyle(
+                color: AppColors.textPrimary.withValues(alpha: 0.2),
+              ),
+            ),
+            TextSpan(
+              text: 'Privacy Policy',
+              style: TextStyle(
+                decoration: TextDecoration.underline,
+                color: AppColors.textPrimary.withValues(alpha: 0.4),
+              ),
+            ),
           ],
         ),
         style: const TextStyle(fontSize: 11),

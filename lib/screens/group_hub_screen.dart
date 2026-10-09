@@ -1,15 +1,28 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class GroupHubScreen extends StatefulWidget {
   final String groupName;
   final String membersCount;
   final String category;
+  final String? school;
+  final String? program;
+  final int? academicYear;
+  final String? classGroupName;
+  final String? classRep;
+  final bool initiallyJoined;
 
   const GroupHubScreen({
     super.key,
     required this.groupName,
     required this.membersCount,
     required this.category,
+    this.school,
+    this.program,
+    this.academicYear,
+    this.classGroupName,
+    this.classRep,
+    this.initiallyJoined = true,
   });
 
   @override
@@ -17,12 +30,18 @@ class GroupHubScreen extends StatefulWidget {
 }
 
 class _GroupHubScreenState extends State<GroupHubScreen> {
-  bool _isJoined = true;
+  late bool _isJoined;
+
+  @override
+  void initState() {
+    super.initState();
+    _isJoined = widget.initiallyJoined;
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0F),
+      backgroundColor: AppColors.pageBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -37,13 +56,15 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                     child: Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.06),
+                        color: AppColors.textPrimary.withValues(alpha: 0.06),
                         shape: BoxShape.circle,
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.08),
+                        ),
                       ),
                       child: const Icon(
                         Icons.arrow_back_ios_new,
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         size: 16,
                       ),
                     ),
@@ -51,12 +72,15 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                   Text(
                     widget.category,
                     style: const TextStyle(
-                      color: Colors.white38,
+                      color: AppColors.textSecondary,
                       fontSize: 13,
                     ),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.more_horiz, color: Colors.white70),
+                    icon: const Icon(
+                      Icons.more_horiz,
+                      color: AppColors.textSecondary,
+                    ),
                     onPressed: () {},
                   ),
                 ],
@@ -73,10 +97,10 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
+                        color: AppColors.textPrimary.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
+                          color: AppColors.textPrimary.withValues(alpha: 0.1),
                         ),
                       ),
                       child: Column(
@@ -88,12 +112,14 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                               Container(
                                 padding: const EdgeInsets.all(12),
                                 decoration: BoxDecoration(
-                                  color: Colors.white.withValues(alpha: 0.1),
+                                  color: AppColors.textPrimary.withValues(
+                                    alpha: 0.1,
+                                  ),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: const Icon(
                                   Icons.groups_outlined,
-                                  color: Colors.white,
+                                  color: AppColors.textPrimary,
                                   size: 28,
                                 ),
                               ),
@@ -105,11 +131,13 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: _isJoined
-                                      ? Colors.white.withValues(alpha: 0.1)
-                                      : Colors.white,
+                                      ? AppColors.textPrimary.withValues(
+                                          alpha: 0.1,
+                                        )
+                                      : AppColors.textPrimary,
                                   foregroundColor: _isJoined
-                                      ? Colors.white
-                                      : const Color(0xFF090A0F),
+                                      ? AppColors.textPrimary
+                                      : AppColors.onAccent,
                                   elevation: 0,
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(20),
@@ -129,7 +157,7 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                           Text(
                             widget.groupName,
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontSize: 20,
                               fontWeight: FontWeight.bold,
                             ),
@@ -138,7 +166,7 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                           Text(
                             '${widget.membersCount} Members • Active Hub',
                             style: const TextStyle(
-                              color: Colors.white38,
+                              color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
@@ -146,22 +174,83 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                       ),
                     ),
 
+                    if (widget.school != null &&
+                        widget.program != null &&
+                        widget.academicYear != null) ...[
+                      const SizedBox(height: 14),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: AppColors.textPrimary.withValues(alpha: 0.03),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.textPrimary.withValues(
+                              alpha: 0.08,
+                            ),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'COHORT CONNECTION',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            _buildCohortDetail('School', widget.school!),
+                            _buildCohortDetail('Program', widget.program!),
+                            _buildCohortDetail(
+                              'Academic year',
+                              'Year ${widget.academicYear}',
+                            ),
+                            if (widget.classGroupName != null)
+                              _buildCohortDetail(
+                                'Class group',
+                                widget.classGroupName!,
+                              ),
+                            if (widget.classRep != null)
+                              _buildCohortDetail(
+                                'Class representative',
+                                widget.classRep!,
+                              ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'This group is linked to the same school, program, year, and class cohort.',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 11,
+                                height: 1.35,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     const SizedBox(height: 24),
 
                     // Pinned Announcement
                     Container(
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.03),
+                        color: AppColors.textPrimary.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.08),
+                        ),
                       ),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Icon(
                             Icons.push_pin_outlined,
-                            color: Colors.white70,
+                            color: AppColors.textSecondary,
                             size: 18,
                           ),
                           const SizedBox(width: 10),
@@ -172,7 +261,7 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                                 const Text(
                                   'Pinned Announcement',
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.textPrimary,
                                     fontSize: 12,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -181,7 +270,9 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                                 Text(
                                   'End of semester project submission deadlines and lab hours updated for SICT students.',
                                   style: TextStyle(
-                                    color: Colors.white.withValues(alpha: 0.6),
+                                    color: AppColors.textPrimary.withValues(
+                                      alpha: 0.6,
+                                    ),
                                     fontSize: 12,
                                   ),
                                 ),
@@ -198,7 +289,7 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                     const Text(
                       'Group Discussion Feed',
                       style: TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -238,9 +329,11 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: AppColors.textPrimary.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.06),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -249,14 +342,20 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
             children: [
               CircleAvatar(
                 radius: 14,
-                backgroundColor: Colors.white.withValues(alpha: 0.1),
-                child: const Icon(Icons.person, color: Colors.white, size: 14),
+                backgroundColor: AppColors.secondarySurface.withValues(
+                  alpha: 0.1,
+                ),
+                child: const Icon(
+                  Icons.person,
+                  color: AppColors.textPrimary,
+                  size: 14,
+                ),
               ),
               const SizedBox(width: 8),
               Text(
                 author,
                 style: const TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
                 ),
@@ -264,14 +363,51 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
               const Spacer(),
               Text(
                 time,
-                style: const TextStyle(color: Colors.white38, fontSize: 11),
+                style: const TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 11,
+                ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Text(
             text,
-            style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.3),
+            style: const TextStyle(
+              color: AppColors.textSecondary,
+              fontSize: 13,
+              height: 1.3,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCohortDetail(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 132,
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.textPrimary,
+                fontSize: 11,
+              ),
+            ),
           ),
         ],
       ),

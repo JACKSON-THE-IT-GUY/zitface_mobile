@@ -18,20 +18,14 @@ class ZitfaceApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (context, currentMode, _) {
-        return MaterialApp(
-          title: 'ZITFACE',
-          debugShowCheckedModeBanner: false,
-          themeMode: currentMode,
-          theme: AppTheme.lightTheme,
-          darkTheme: AppTheme.darkTheme,
-          locale: DevicePreview.locale(context),
-          builder: DevicePreview.appBuilder,
-          home: const MainShellScreen(),
-        );
-      },
+    return MaterialApp(
+      title: 'ZITFACE',
+      debugShowCheckedModeBanner: false,
+      themeMode: ThemeMode.light,
+      theme: AppTheme.lightTheme,
+      locale: DevicePreview.locale(context),
+      builder: DevicePreview.appBuilder,
+      home: const MainShellScreen(),
     );
   }
 }

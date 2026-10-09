@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'chat_detail_screen.dart';
 
@@ -47,7 +48,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0F),
+      backgroundColor: AppColors.pageBackground,
       body: SafeArea(
         child: Column(
           children: [
@@ -60,7 +61,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   const Text(
                     'Messages',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -68,13 +69,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.06),
+                      color: AppColors.textPrimary.withValues(alpha: 0.06),
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                      border: Border.all(
+                        color: AppColors.textPrimary.withValues(alpha: 0.08),
+                      ),
                     ),
                     child: const Icon(
                       Icons.edit_note_rounded,
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       size: 20,
                     ),
                   ),
@@ -86,22 +89,37 @@ class _ChatListScreenState extends State<ChatListScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 4,
+                ),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.04),
+                  color: AppColors.textPrimary.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(
+                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: const Row(
                   children: [
-                    Icon(Icons.search, color: Colors.white38, size: 20),
+                    Icon(
+                      Icons.search,
+                      color: AppColors.textSecondary,
+                      size: 20,
+                    ),
                     SizedBox(width: 10),
                     Expanded(
                       child: TextField(
-                        style: TextStyle(color: Colors.white, fontSize: 14),
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
                         decoration: InputDecoration(
                           hintText: 'Search conversations...',
-                          hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                          hintStyle: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
                           border: InputBorder.none,
                         ),
                       ),
@@ -137,9 +155,11 @@ class _ChatListScreenState extends State<ChatListScreen> {
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.03),
+                        color: AppColors.textPrimary.withValues(alpha: 0.03),
                         borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.06),
+                        ),
                       ),
                       child: Row(
                         children: [
@@ -147,11 +167,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                             children: [
                               CircleAvatar(
                                 radius: 24,
-                                backgroundColor: Colors.white.withValues(alpha: 0.08),
+                                backgroundColor: AppColors.secondarySurface
+                                    .withValues(alpha: 0.08),
                                 child: Text(
                                   chat['name'][0],
                                   style: const TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.textPrimary,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -168,7 +189,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       color: const Color(0xFF10B981),
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: const Color(0xFF090A0F),
+                                        color: AppColors.textPrimary,
                                         width: 2,
                                       ),
                                     ),
@@ -182,12 +203,13 @@ class _ChatListScreenState extends State<ChatListScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
                                     Text(
                                       chat['name'],
                                       style: const TextStyle(
-                                        color: Colors.white,
+                                        color: AppColors.textPrimary,
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -195,7 +217,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                     Text(
                                       chat['time'],
                                       style: const TextStyle(
-                                        color: Colors.white38,
+                                        color: AppColors.textSecondary,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -211,8 +233,8 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           color: chat['unread'] > 0
-                                              ? Colors.white
-                                              : Colors.white38,
+                                              ? AppColors.textPrimary
+                                              : AppColors.textSecondary,
                                           fontSize: 13,
                                           fontWeight: chat['unread'] > 0
                                               ? FontWeight.w600
@@ -228,13 +250,15 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: Colors.white,
-                                          borderRadius: BorderRadius.circular(10),
+                                          color: AppColors.textPrimary,
+                                          borderRadius: BorderRadius.circular(
+                                            10,
+                                          ),
                                         ),
                                         child: Text(
                                           '${chat['unread']}',
                                           style: const TextStyle(
-                                            color: Color(0xFF090A0F),
+                                            color: AppColors.textPrimary,
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                           ),

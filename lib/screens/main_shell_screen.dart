@@ -7,6 +7,8 @@ import 'home_screen.dart';
 import 'market_screen.dart';
 import 'chats_screen.dart';
 import 'profile_screen.dart';
+import 'materials_screen.dart';
+import 'friends_screen.dart';
 
 class MainShellScreen extends StatefulWidget {
   const MainShellScreen({super.key});
@@ -18,32 +20,65 @@ class MainShellScreen extends StatefulWidget {
 class _MainShellScreenState extends State<MainShellScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const HomeScreen(),
+  late final List<Widget> _screens = [
+    HomeScreen(onProfileTap: _openProfileTab),
+    const MaterialsScreen(),
+    const FriendsScreen(),
     const GroupsScreen(),
     const MarketplaceScreen(),
     const ChatsScreen(),
     const ProfileScreen(),
   ];
 
+  void _openProfileTab() {
+    final profileIndex = _screens.indexWhere(
+      (screen) => screen is ProfileScreen,
+    );
+    if (profileIndex < 0) return;
+    setState(() => _currentIndex = profileIndex);
+  }
+
   @override
   Widget build(BuildContext context) {
     return GlassScaffold(
       bottomNavigationBar: _buildFloatingNavBar(),
-      child: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+      child: IndexedStack(index: _currentIndex, children: _screens),
     );
   }
 
   Widget _buildFloatingNavBar() {
     final List<Map<String, dynamic>> navItems = [
       {'icon': Icons.home_outlined, 'activeIcon': Icons.home, 'label': 'Home'},
-      {'icon': Icons.group_outlined, 'activeIcon': Icons.group, 'label': 'Groups'},
-      {'icon': Icons.storefront_outlined, 'activeIcon': Icons.storefront, 'label': 'Market'},
-      {'icon': Icons.chat_bubble_outline, 'activeIcon': Icons.chat_bubble, 'label': 'Chats'},
-      {'icon': Icons.person_outline, 'activeIcon': Icons.person, 'label': 'Profile'},
+      {
+        'icon': Icons.menu_book_outlined,
+        'activeIcon': Icons.menu_book,
+        'label': 'Materials',
+      },
+      {
+        'icon': Icons.person_search_outlined,
+        'activeIcon': Icons.person_search,
+        'label': 'Friends',
+      },
+      {
+        'icon': Icons.group_outlined,
+        'activeIcon': Icons.group,
+        'label': 'Groups',
+      },
+      {
+        'icon': Icons.storefront_outlined,
+        'activeIcon': Icons.storefront,
+        'label': 'Market',
+      },
+      {
+        'icon': Icons.chat_bubble_outline,
+        'activeIcon': Icons.chat_bubble,
+        'label': 'Chats',
+      },
+      {
+        'icon': Icons.person_outline,
+        'activeIcon': Icons.person,
+        'label': 'Profile',
+      },
     ];
 
     return Padding(
@@ -54,41 +89,62 @@ class _MainShellScreenState extends State<MainShellScreen> {
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: List.generate(navItems.length, (index) {
             final bool isActive = _currentIndex == index;
-            return GestureDetector(
-              onTap: () {
-                setState(() {
-                  _currentIndex = index;
-                });
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
-                decoration: BoxDecoration(
-                  color: isActive ? AppColors.accent.withValues(alpha: 0.20) : Colors.transparent,
-                  borderRadius: BorderRadius.circular(18),
-                  border: Border.all(
-                    color: isActive ? AppColors.accent.withValues(alpha: 0.4) : Colors.transparent,
-                    width: 1,
+            return Expanded(
+              child: GestureDetector(
+                behavior: HitTestBehavior.opaque,
+                onTap: () {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
+                child: AnimatedContainer(
+                  width: double.infinity,
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                    vertical: 6,
+                    horizontal: 2,
                   ),
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isActive ? navItems[index]['activeIcon'] : navItems[index]['icon'],
-                      color: isActive ? Colors.white : Colors.white60,
-                      size: 20,
+                  decoration: BoxDecoration(
+                    color: isActive
+                        ? AppColors.accent.withValues(alpha: 0.20)
+                        : Colors.transparent,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(
+                      color: isActive
+                          ? AppColors.accent.withValues(alpha: 0.4)
+                          : Colors.transparent,
+                      width: 1,
                     ),
-                    const SizedBox(height: 2),
-                    Text(
-                      navItems[index]['label'],
-                      style: TextStyle(
-                        color: isActive ? Colors.white : Colors.white60,
-                        fontSize: 9,
-                        fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isActive
+                            ? navItems[index]['activeIcon']
+                            : navItems[index]['icon'],
+                        color: isActive
+                            ? AppColors.textPrimary
+                            : AppColors.textSecondary,
+                        size: 19,
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 2),
+                      Text(
+                        navItems[index]['label'],
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: isActive
+                              ? AppColors.textPrimary
+                              : AppColors.textSecondary,
+                          fontSize: 8,
+                          fontWeight: isActive
+                              ? FontWeight.w600
+                              : FontWeight.w400,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             );

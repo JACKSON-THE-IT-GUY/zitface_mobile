@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../widget/auth_widgets.dart';
 import 'login_screen.dart';
@@ -37,26 +38,45 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const Text(
                         'Create an Account',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       const SizedBox(height: 10),
                       Text(
                         'To create an account provide details verify email\nand set a password.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.85), fontSize: 13, height: 1.4),
+                        style: TextStyle(
+                          color: AppColors.textPrimary.withValues(alpha: 0.85),
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
                       ),
                       const SizedBox(height: 26),
                       Row(
                         children: [
                           SocialAuthButton(
                             label: 'Google',
-                            icon: const Text('G', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                            icon: const Text(
+                              'G',
+                              style: TextStyle(
+                                color: AppColors.textPrimary,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
                             onTap: () {},
                           ),
                           const SizedBox(width: 14),
                           SocialAuthButton(
                             label: 'Apple',
-                            icon: const Icon(Icons.apple, color: Colors.white, size: 18),
+                            icon: const Icon(
+                              Icons.apple,
+                              color: AppColors.textPrimary,
+                              size: 18,
+                            ),
                             onTap: () {},
                           ),
                         ],
@@ -64,13 +84,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       const SizedBox(height: 20),
                       const OrDivider(),
                       const SizedBox(height: 20),
-                      AuthTextField(hint: 'Email address', controller: _emailCtrl),
+                      AuthTextField(
+                        hint: 'Email address',
+                        controller: _emailCtrl,
+                      ),
                       const SizedBox(height: 20),
                       GradientAuthButton(
                         label: 'Continue',
                         onTap: () {
                           Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const HomeScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const HomeScreen(),
+                            ),
                           );
                         },
                       ),
@@ -78,15 +103,29 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       GestureDetector(
                         onTap: () {
                           Navigator.of(context).pushReplacement(
-                            MaterialPageRoute(builder: (_) => const LoginScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const LoginScreen(),
+                            ),
                           );
                         },
                         child: RichText(
                           text: TextSpan(
-                            style: TextStyle(fontSize: 13, color: Colors.white.withValues(alpha: 0.85)),
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.85,
+                              ),
+                            ),
                             children: const [
                               TextSpan(text: 'Have an account? '),
-                              TextSpan(text: 'Log In', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, decoration: TextDecoration.underline)),
+                              TextSpan(
+                                text: 'Log In',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.textPrimary,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
                             ],
                           ),
                         ),

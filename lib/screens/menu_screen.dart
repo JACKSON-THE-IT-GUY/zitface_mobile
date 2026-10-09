@@ -21,7 +21,7 @@ class MenuScreen extends StatelessWidget {
               const Text(
                 'Menu',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
@@ -35,7 +35,9 @@ class MenuScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppTheme.primaryColor.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(
+                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: Row(
                   children: [
@@ -44,11 +46,13 @@ class MenuScreen extends StatelessWidget {
                       height: 44,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: Colors.white.withValues(alpha: 0.1),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                        color: AppColors.textPrimary.withValues(alpha: 0.1),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.2),
+                        ),
                       ),
                       child: const Center(
-                        child: Icon(Icons.person, color: Colors.white),
+                        child: Icon(Icons.person, color: AppColors.textPrimary),
                       ),
                     ),
                     const SizedBox(width: 12),
@@ -59,7 +63,7 @@ class MenuScreen extends StatelessWidget {
                           Text(
                             'Jackson Nsonga',
                             style: TextStyle(
-                              color: Colors.white,
+                              color: AppColors.textPrimary,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
@@ -67,14 +71,18 @@ class MenuScreen extends StatelessWidget {
                           Text(
                             'See your profile',
                             style: TextStyle(
-                              color: Colors.white38,
+                              color: AppColors.textSecondary,
                               fontSize: 12,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(Icons.arrow_forward_ios, color: Colors.white38, size: 14),
+                    const Icon(
+                      Icons.arrow_forward_ios,
+                      color: AppColors.textSecondary,
+                      size: 14,
+                    ),
                   ],
                 ),
               ),
@@ -85,7 +93,7 @@ class MenuScreen extends StatelessWidget {
               const Text(
                 'All Shortcuts',
                 style: TextStyle(
-                  color: Colors.white70,
+                  color: AppColors.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -100,10 +108,26 @@ class MenuScreen extends StatelessWidget {
                 mainAxisSpacing: 10,
                 childAspectRatio: 2.2,
                 children: [
-                  _buildShortcutCard(Icons.groups_outlined, 'Groups', 'CBU Hubs'),
-                  _buildShortcutCard(Icons.storefront_outlined, 'Marketplace', 'Campus Buy/Sell'),
-                  _buildShortcutCard(Icons.bookmark_outline, 'Saved', 'Posts & Notes'),
-                  _buildShortcutCard(Icons.event_outlined, 'Campus Events', 'ICTA & Guild'),
+                  _buildShortcutCard(
+                    Icons.groups_outlined,
+                    'Groups',
+                    'CBU Hubs',
+                  ),
+                  _buildShortcutCard(
+                    Icons.storefront_outlined,
+                    'Marketplace',
+                    'Campus Buy/Sell',
+                  ),
+                  _buildShortcutCard(
+                    Icons.bookmark_outline,
+                    'Saved',
+                    'Posts & Notes',
+                  ),
+                  _buildShortcutCard(
+                    Icons.event_outlined,
+                    'Campus Events',
+                    'ICTA & Guild',
+                  ),
                 ],
               ),
 
@@ -115,9 +139,17 @@ class MenuScreen extends StatelessWidget {
                 icon: Icons.settings_outlined,
                 title: 'Settings & Privacy',
                 children: [
-                  _buildMenuItem(Icons.lock_outline, 'Privacy Shortcuts', onTap: () {}),
-                  _buildMenuItem(Icons.dark_mode_outlined, 'Dark Mode', subtitle: 'On', onTap: () {}),
-                  _buildMenuItem(Icons.language_outlined, 'Language', subtitle: 'English (US)', onTap: () {}),
+                  _buildMenuItem(
+                    Icons.lock_outline,
+                    'Privacy Shortcuts',
+                    onTap: () {},
+                  ),
+                  _buildMenuItem(
+                    Icons.language_outlined,
+                    'Language',
+                    subtitle: 'English (US)',
+                    onTap: () {},
+                  ),
                 ],
               ),
 
@@ -129,26 +161,23 @@ class MenuScreen extends StatelessWidget {
                 icon: Icons.help_outline_rounded,
                 title: 'Help & Support',
                 children: [
-                  _buildMenuItem(Icons.help_center_outlined, 'Help Center', onTap: () {}),
-                  _buildMenuItem(Icons.report_problem_outlined, 'Report a Problem', onTap: () {}),
-                  _buildMenuItem(Icons.article_outlined, 'Terms & Policies', onTap: () {}),
+                  _buildMenuItem(
+                    Icons.help_center_outlined,
+                    'Help Center',
+                    onTap: () {},
+                  ),
+                  _buildMenuItem(
+                    Icons.report_problem_outlined,
+                    'Report a Problem',
+                    onTap: () {},
+                  ),
+                  _buildMenuItem(
+                    Icons.article_outlined,
+                    'Terms & Policies',
+                    onTap: () {},
+                  ),
                 ],
               ),
-              ValueListenableBuilder<ThemeMode>(
-  valueListenable: themeNotifier,
-  builder: (context, currentMode, _) {
-    final isDark = currentMode == ThemeMode.dark;
-    return _buildMenuItem(
-      Icons.dark_mode_outlined,
-      'Dark Mode',
-      subtitle: isDark ? 'On' : 'Off',
-      onTap: () {
-        themeNotifier.value = isDark ? ThemeMode.light : ThemeMode.dark;
-      },
-    );
-  },
-),
-
               const SizedBox(height: 20),
 
               // Log Out Button
@@ -160,7 +189,9 @@ class MenuScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppTheme.primaryColor.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppTheme.primaryColor.withValues(alpha: 0.1)),
+                    border: Border.all(
+                      color: AppTheme.primaryColor.withValues(alpha: 0.1),
+                    ),
                   ),
                   child: const Center(
                     child: Text(
@@ -187,13 +218,15 @@ class MenuScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.04),
+        color: AppColors.textPrimary.withValues(alpha: 0.04),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.07)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.07),
+        ),
       ),
       child: Row(
         children: [
-          Icon(icon, color: Colors.white70, size: 22),
+          Icon(icon, color: AppColors.textSecondary, size: 22),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -203,7 +236,7 @@ class MenuScreen extends StatelessWidget {
                 Text(
                   title,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
@@ -211,7 +244,7 @@ class MenuScreen extends StatelessWidget {
                 Text(
                   subtitle,
                   style: const TextStyle(
-                    color: Colors.white38,
+                    color: AppColors.textSecondary,
                     fontSize: 10,
                   ),
                 ),
@@ -231,20 +264,22 @@ class MenuScreen extends StatelessWidget {
   }) {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.03),
+        color: AppColors.textPrimary.withValues(alpha: 0.03),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+        border: Border.all(
+          color: AppColors.textPrimary.withValues(alpha: 0.06),
+        ),
       ),
       child: Theme(
         data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
         child: ExpansionTile(
-          iconColor: Colors.white70,
-          collapsedIconColor: Colors.white38,
-          leading: Icon(icon, color: Colors.white),
+          iconColor: AppColors.textSecondary,
+          collapsedIconColor: AppColors.textSecondary,
+          leading: Icon(icon, color: AppColors.textPrimary),
           title: Text(
             title,
             style: const TextStyle(
-              color: Colors.white,
+              color: AppColors.textPrimary,
               fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
@@ -263,17 +298,24 @@ class MenuScreen extends StatelessWidget {
   }) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: Colors.white54, size: 20),
+      leading: Icon(icon, color: AppColors.textSecondary, size: 20),
       title: Text(
         title,
-        style: const TextStyle(color: Colors.white70, fontSize: 13),
+        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
       ),
       trailing: subtitle != null
           ? Text(
               subtitle,
-              style: const TextStyle(color: Colors.white38, fontSize: 11),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 11,
+              ),
             )
-          : const Icon(Icons.chevron_right, color: Colors.white24, size: 16),
+          : const Icon(
+              Icons.chevron_right,
+              color: AppColors.textSecondary,
+              size: 16,
+            ),
     );
   }
 
@@ -282,23 +324,31 @@ class MenuScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          backgroundColor: const Color(0xFF14151C),
+          backgroundColor: AppColors.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
-            side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+            side: BorderSide(
+              color: AppColors.textPrimary.withValues(alpha: 0.1),
+            ),
           ),
           title: const Text(
             'Log Out',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+            style: TextStyle(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           content: const Text(
             'Are you sure you want to log out of ZITFACE?',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel', style: TextStyle(color: Colors.white38)),
+              child: const Text(
+                'Cancel',
+                style: TextStyle(color: AppColors.textSecondary),
+              ),
             ),
             ElevatedButton(
               style: ElevatedButton.styleFrom(
@@ -311,7 +361,10 @@ class MenuScreen extends StatelessWidget {
                 Navigator.pop(dialogContext);
                 // Perform auth logout action here
               },
-              child: const Text('Log Out', style: TextStyle(color: Colors.white)),
+              child: const Text(
+                'Log Out',
+                style: TextStyle(color: AppColors.textPrimary),
+              ),
             ),
           ],
         );

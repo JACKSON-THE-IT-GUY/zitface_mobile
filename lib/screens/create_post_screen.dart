@@ -1,4 +1,7 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CreatePostScreen extends StatefulWidget {
   const CreatePostScreen({super.key});
@@ -9,8 +12,10 @@ class CreatePostScreen extends StatefulWidget {
 
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _postController = TextEditingController();
+  final ImagePicker _imagePicker = ImagePicker();
   String _selectedAudience = 'CBU Campus';
-  bool _hasImage = false;
+  Uint8List? _imageBytes;
+  bool _isPickingImage = false;
 
   final List<String> _audienceOptions = [
     'Public',
@@ -25,6 +30,45 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     super.dispose();
   }
 
+  Future<void> _pickImage() async {
+    if (_isPickingImage) return;
+    setState(() => _isPickingImage = true);
+    try {
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
+      if (image == null) return;
+      final bytes = await image.readAsBytes();
+      if (!mounted) return;
+      setState(() => _imageBytes = bytes);
+    } on PlatformException catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not select image: ${error.message}')),
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Could not select image: $error')));
+    } finally {
+      if (mounted) setState(() => _isPickingImage = false);
+    }
+  }
+
+  void _submitPost() {
+    final text = _postController.text.trim();
+    if (text.isEmpty && _imageBytes == null) return;
+    Navigator.pop(context, <String, Object?>{
+      'text': text,
+      'audience': _selectedAudience,
+      'imageBytes': _imageBytes,
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -34,9 +78,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F1016),
+          color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          border: Border.all(
+            color: AppColors.textPrimary.withValues(alpha: 0.1),
+          ),
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -49,7 +95,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: AppColors.textSecondary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -62,13 +108,16 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     onTap: () => Navigator.pop(context),
                     child: const Text(
                       'Cancel',
-                      style: TextStyle(color: Colors.white38, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                   const Text(
                     'Create Post',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -76,21 +125,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   ValueListenableBuilder<TextEditingValue>(
                     valueListenable: _postController,
                     builder: (context, value, _) {
-                      final bool canPost = value.text.trim().isNotEmpty || _hasImage;
+                      final bool canPost =
+                          value.text.trim().isNotEmpty || _imageBytes != null;
                       return ElevatedButton(
-                        onPressed: canPost
-                            ? () {
-                                // Action: Publish post logic
-                                Navigator.pop(context);
-                              }
-                            : null,
+                        onPressed: canPost ? _submitPost : null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: canPost
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.1),
+                              ? AppColors.accent
+                              : AppColors.textPrimary.withValues(alpha: 0.1),
                           foregroundColor: canPost
-                              ? const Color(0xFF090A0F)
-                              : Colors.white24,
+                              ? AppColors.onAccent
+                              : AppColors.textSecondary,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -123,11 +168,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     height: 44,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: Colors.white.withValues(alpha: 0.1),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+                      color: AppColors.textPrimary.withValues(alpha: 0.1),
+                      border: Border.all(
+                        color: AppColors.textPrimary.withValues(alpha: 0.2),
+                      ),
                     ),
                     child: const Center(
-                      child: Icon(Icons.person, color: Colors.white, size: 22),
+                      child: Icon(
+                        Icons.person,
+                        color: AppColors.textPrimary,
+                        size: 22,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -137,7 +188,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       const Text(
                         'Jackson Nsonga',
                         style: TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -151,10 +202,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.08),
+                            color: AppColors.textPrimary.withValues(
+                              alpha: 0.08,
+                            ),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: Colors.white.withValues(alpha: 0.12),
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.12,
+                              ),
                             ),
                           ),
                           child: Row(
@@ -162,7 +217,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               Text(
                                 _selectedAudience,
                                 style: const TextStyle(
-                                  color: Colors.white70,
+                                  color: AppColors.textSecondary,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
@@ -170,7 +225,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                               const SizedBox(width: 4),
                               const Icon(
                                 Icons.keyboard_arrow_down,
-                                color: Colors.white70,
+                                color: AppColors.textSecondary,
                                 size: 14,
                               ),
                             ],
@@ -190,34 +245,47 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 autofocus: true,
                 maxLines: 5,
                 minLines: 3,
-                style: const TextStyle(color: Colors.white, fontSize: 15),
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 15,
+                ),
                 decoration: const InputDecoration(
                   hintText: "What's happening on campus?",
-                  hintStyle: TextStyle(color: Colors.white38, fontSize: 15),
+                  hintStyle: TextStyle(
+                    color: AppColors.textSecondary,
+                    fontSize: 15,
+                  ),
                   border: InputBorder.none,
                 ),
               ),
 
-              // Attachment Mock Preview Box (if toggled)
-              if (_hasImage)
+              if (_imageBytes != null)
                 Stack(
                   children: [
-                    Container(
-                      height: 180,
-                      width: double.infinity,
-                      margin: const EdgeInsets.symmetric(vertical: 10),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.05),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: Colors.white.withValues(alpha: 0.1),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(16),
+                      child: Container(
+                        height: 180,
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(vertical: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.textPrimary.withValues(alpha: 0.05),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: AppColors.textPrimary.withValues(alpha: 0.1),
+                          ),
                         ),
-                      ),
-                      child: const Center(
-                        child: Icon(
-                          Icons.image_outlined,
-                          color: Colors.white38,
-                          size: 40,
+                        child: Image.memory(
+                          _imageBytes!,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(
+                                child: Icon(
+                                  Icons.broken_image_outlined,
+                                  color: AppColors.textSecondary,
+                                  size: 40,
+                                ),
+                              ),
                         ),
                       ),
                     ),
@@ -227,7 +295,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                       child: GestureDetector(
                         onTap: () {
                           setState(() {
-                            _hasImage = false;
+                            _imageBytes = null;
                           });
                         },
                         child: Container(
@@ -238,7 +306,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                           ),
                           child: const Icon(
                             Icons.close,
-                            color: Colors.white,
+                            color: AppColors.textPrimary,
                             size: 14,
                           ),
                         ),
@@ -248,7 +316,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
 
               const SizedBox(height: 10),
-              Divider(color: Colors.white.withValues(alpha: 0.08)),
+              Divider(color: AppColors.textPrimary.withValues(alpha: 0.08)),
               const SizedBox(height: 10),
 
               // Attachment Action Buttons Bar
@@ -258,11 +326,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   _buildActionButton(
                     icon: Icons.photo_library_outlined,
                     label: 'Photo',
-                    onTap: () {
-                      setState(() {
-                        _hasImage = !_hasImage;
-                      });
-                    },
+                    onTap: _pickImage,
                   ),
                   _buildActionButton(
                     icon: Icons.sell_outlined,
@@ -294,17 +358,22 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.05),
+          color: AppColors.textPrimary.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+          border: Border.all(
+            color: AppColors.textPrimary.withValues(alpha: 0.08),
+          ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: Colors.white70, size: 16),
+            Icon(icon, color: AppColors.textSecondary, size: 16),
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(color: Colors.white70, fontSize: 12),
+              style: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -315,7 +384,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void _showAudienceSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF14151C),
+      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -328,7 +397,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               const Text(
                 'Select Audience',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -338,10 +407,17 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 (option) => ListTile(
                   title: Text(
                     option,
-                    style: const TextStyle(color: Colors.white, fontSize: 14),
+                    style: const TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 14,
+                    ),
                   ),
                   trailing: _selectedAudience == option
-                      ? const Icon(Icons.check, color: Colors.white, size: 18)
+                      ? const Icon(
+                          Icons.check,
+                          color: AppColors.textPrimary,
+                          size: 18,
+                        )
                       : null,
                   onTap: () {
                     setState(() {

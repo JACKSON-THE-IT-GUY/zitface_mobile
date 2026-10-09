@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class ChatDetailScreen extends StatefulWidget {
@@ -33,27 +34,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
     },
     {
       'sender': 'peer',
-      'text': 'Awesome, got it. Are you attending the lab session at Riverside later?',
+      'text':
+          'Awesome, got it. Are you attending the lab session at Riverside later?',
       'time': '10:45 AM',
     },
   ];
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
 
   void _sendMessage() {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
 
     setState(() {
-      _messages.add({
-        'sender': 'me',
-        'text': text,
-        'time': 'Just now',
-      });
+      _messages.add({'sender': 'me', 'text': text, 'time': 'Just now'});
     });
 
     _messageController.clear();
 
     // Auto-scroll to bottom
-    Future.delayed(const Duration(milliseconds: 100), () {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
           _scrollController.position.maxScrollExtent,
@@ -67,12 +72,16 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0F),
+      backgroundColor: AppColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1016),
+        backgroundColor: AppColors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.textPrimary,
+            size: 18,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
@@ -81,11 +90,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: Colors.white.withValues(alpha: 0.1),
+                  backgroundColor: AppColors.secondarySurface.withValues(
+                    alpha: 0.1,
+                  ),
                   child: Text(
                     widget.peerName.isNotEmpty ? widget.peerName[0] : 'U',
                     style: const TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -100,10 +111,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF10B981),
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFF0F1016),
-                          width: 2,
-                        ),
+                        border: Border.all(color: AppColors.surface, width: 2),
                       ),
                     ),
                   ),
@@ -116,7 +124,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 Text(
                   widget.peerName,
                   style: const TextStyle(
-                    color: Colors.white,
+                    color: AppColors.textPrimary,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
@@ -124,7 +132,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                 Text(
                   widget.isOnline ? 'Online' : widget.peerHandle,
                   style: TextStyle(
-                    color: widget.isOnline ? const Color(0xFF10B981) : Colors.white38,
+                    color: widget.isOnline
+                        ? const Color(0xFF10B981)
+                        : AppColors.textSecondary,
                     fontSize: 11,
                   ),
                 ),
@@ -132,16 +142,6 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             ),
           ],
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.phone_outlined, color: Colors.white70, size: 20),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white70, size: 20),
-            onPressed: () {},
-          ),
-        ],
       ),
       body: SafeArea(
         child: Column(
@@ -149,24 +149,32 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             Expanded(
               child: ListView.builder(
                 controller: _scrollController,
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
                 itemCount: _messages.length,
                 itemBuilder: (context, index) {
                   final msg = _messages[index];
                   final isMe = msg['sender'] == 'me';
 
                   return Align(
-                    alignment: isMe ? Alignment.centerRight : Alignment.centerLeft,
+                    alignment: isMe
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
                     child: Container(
                       margin: const EdgeInsets.only(bottom: 12),
                       constraints: BoxConstraints(
                         maxWidth: MediaQuery.of(context).size.width * 0.75,
                       ),
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
                       decoration: BoxDecoration(
                         color: isMe
-                            ? Colors.white
-                            : Colors.white.withValues(alpha: 0.06),
+                            ? AppColors.textPrimary
+                            : AppColors.textPrimary.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(18),
                           topRight: const Radius.circular(18),
@@ -175,16 +183,23 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         ),
                         border: isMe
                             ? null
-                            : Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                            : Border.all(
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.08,
+                                ),
+                              ),
                       ),
                       child: Column(
-                        crossAxisAlignment:
-                            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                        crossAxisAlignment: isMe
+                            ? CrossAxisAlignment.end
+                            : CrossAxisAlignment.start,
                         children: [
                           Text(
                             msg['text'],
                             style: TextStyle(
-                              color: isMe ? const Color(0xFF090A0F) : Colors.white,
+                              color: isMe
+                                  ? AppColors.onAccent
+                                  : AppColors.textPrimary,
                               fontSize: 14,
                               height: 1.3,
                             ),
@@ -193,7 +208,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                           Text(
                             msg['time'],
                             style: TextStyle(
-                              color: isMe ? Colors.black45 : Colors.white38,
+                              color: isMe
+                                  ? Colors.black45
+                                  : AppColors.textSecondary,
                               fontSize: 10,
                             ),
                           ),
@@ -209,31 +226,37 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: const Color(0xFF0F1016),
+                color: AppColors.surface,
                 border: Border(
-                  top: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
+                  top: BorderSide(
+                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                  ),
                 ),
               ),
               child: Row(
                 children: [
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline, color: Colors.white54),
-                    onPressed: () {},
-                  ),
                   Expanded(
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.04),
+                        color: AppColors.textPrimary.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                        border: Border.all(
+                          color: AppColors.textPrimary.withValues(alpha: 0.08),
+                        ),
                       ),
                       child: TextField(
                         controller: _messageController,
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        style: const TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 14,
+                        ),
                         decoration: const InputDecoration(
                           hintText: 'Type a message...',
-                          hintStyle: TextStyle(color: Colors.white38, fontSize: 13),
+                          hintStyle: TextStyle(
+                            color: AppColors.textSecondary,
+                            fontSize: 13,
+                          ),
                           border: InputBorder.none,
                         ),
                         onSubmitted: (_) => _sendMessage(),
@@ -241,20 +264,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: _sendMessage,
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(
-                        Icons.send_rounded,
-                        color: Color(0xFF090A0F),
-                        size: 18,
-                      ),
+                  IconButton(
+                    tooltip: 'Send message',
+                    onPressed: _sendMessage,
+                    style: IconButton.styleFrom(
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
                     ),
+                    icon: const Icon(Icons.send_rounded, size: 18),
                   ),
                 ],
               ),
@@ -264,9 +281,4 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       ),
     );
   }
-}
-
-// Custom AppBar title helper fix
-extension AppBarTitleFix on AppBar {
-  static Widget titleRow(Widget child) => child;
 }

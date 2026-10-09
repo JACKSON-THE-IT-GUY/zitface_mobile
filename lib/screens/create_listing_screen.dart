@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class CreateListingScreen extends StatefulWidget {
@@ -54,9 +55,11 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: const Color(0xFF0F1016),
+          color: AppColors.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+          border: Border.all(
+            color: AppColors.textPrimary.withValues(alpha: 0.1),
+          ),
         ),
         child: SingleChildScrollView(
           child: Column(
@@ -69,7 +72,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.white24,
+                    color: AppColors.textSecondary,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -84,13 +87,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                     onTap: () => Navigator.pop(context),
                     child: const Text(
                       'Cancel',
-                      style: TextStyle(color: Colors.white38, fontSize: 14),
+                      style: TextStyle(
+                        color: AppColors.textSecondary,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                   const Text(
                     'List an Item',
                     style: TextStyle(
-                      color: Colors.white,
+                      color: AppColors.textPrimary,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -98,8 +104,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   ElevatedButton(
                     onPressed: _submitListing,
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: const Color(0xFF090A0F),
+                      backgroundColor: AppColors.accent,
+                      foregroundColor: AppColors.onAccent,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 16,
@@ -126,7 +132,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               const Text(
                 'Category',
                 style: TextStyle(
-                  color: Colors.white60,
+                  color: AppColors.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -154,21 +160,21 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? Colors.white
-                              : Colors.white.withValues(alpha: 0.04),
+                              ? AppColors.textPrimary
+                              : AppColors.textPrimary.withValues(alpha: 0.04),
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: isSelected
-                                ? Colors.white
-                                : Colors.white.withValues(alpha: 0.08),
+                                ? AppColors.textPrimary
+                                : AppColors.textPrimary.withValues(alpha: 0.08),
                           ),
                         ),
                         child: Text(
                           cat,
                           style: TextStyle(
                             color: isSelected
-                                ? const Color(0xFF090A0F)
-                                : Colors.white70,
+                                ? AppColors.onAccent
+                                : AppColors.textSecondary,
                             fontSize: 12,
                             fontWeight: isSelected
                                 ? FontWeight.bold
@@ -224,7 +230,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         Text(
           label,
           style: const TextStyle(
-            color: Colors.white60,
+            color: AppColors.textSecondary,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -233,18 +239,23 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.04),
+            color: AppColors.textPrimary.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            border: Border.all(
+              color: AppColors.textPrimary.withValues(alpha: 0.08),
+            ),
           ),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
             keyboardType: keyboardType,
-            style: const TextStyle(color: Colors.white, fontSize: 14),
+            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(color: Colors.white24, fontSize: 13),
+              hintStyle: const TextStyle(
+                color: AppColors.textSecondary,
+                fontSize: 13,
+              ),
               border: InputBorder.none,
             ),
           ),

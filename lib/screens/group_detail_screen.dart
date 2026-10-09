@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 
 class GroupDetailScreen extends StatefulWidget {
@@ -25,13 +26,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     {
       'author': 'Phanciah C.',
       'time': '1 hour ago',
-      'content': 'Reminder: The CS150 lab quiz is moved to Thursday at 14:00 hrs in Riverside Computer Lab 2.',
+      'content':
+          'Reminder: The CS150 lab quiz is moved to Thursday at 14:00 hrs in Riverside Computer Lab 2.',
       'likes': '14',
     },
     {
       'author': 'David M.',
       'time': '3 hours ago',
-      'content': 'Does anyone have the past papers for MA110 linear algebra? Please drop a link or send a DM.',
+      'content':
+          'Does anyone have the past papers for MA110 linear algebra? Please drop a link or send a DM.',
       'likes': '8',
     },
   ];
@@ -45,25 +48,33 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0F),
+      backgroundColor: AppColors.pageBackground,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1016),
+        backgroundColor: AppColors.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white, size: 18),
+          icon: const Icon(
+            Icons.arrow_back_ios_new,
+            color: AppColors.textPrimary,
+            size: 18,
+          ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.groupName,
           style: const TextStyle(
-            color: Colors.white,
+            color: AppColors.textPrimary,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.more_vert, color: Colors.white70, size: 20),
+            icon: const Icon(
+              Icons.more_vert,
+              color: AppColors.textSecondary,
+              size: 20,
+            ),
             onPressed: () {},
           ),
         ],
@@ -78,19 +89,23 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.03),
+                  color: AppColors.textPrimary.withValues(alpha: 0.03),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(
+                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                  ),
                 ),
                 child: Column(
                   children: [
                     CircleAvatar(
                       radius: 32,
-                      backgroundColor: Colors.white.withValues(alpha: 0.08),
+                      backgroundColor: AppColors.secondarySurface.withValues(
+                        alpha: 0.08,
+                      ),
                       child: Text(
                         widget.groupName.isNotEmpty ? widget.groupName[0] : 'G',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.textPrimary,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
@@ -101,7 +116,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       widget.groupName,
                       textAlign: TextAlign.center,
                       style: const TextStyle(
-                        color: Colors.white,
+                        color: AppColors.textPrimary,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -110,7 +125,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     Text(
                       '${widget.category} • ${widget.memberCount} Members',
                       style: const TextStyle(
-                        color: Colors.white38,
+                        color: AppColors.textSecondary,
                         fontSize: 12,
                       ),
                     ),
@@ -126,11 +141,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: _joined
-                              ? Colors.white.withValues(alpha: 0.08)
-                              : Colors.white,
+                              ? AppColors.textPrimary.withValues(alpha: 0.08)
+                              : AppColors.textPrimary,
                           borderRadius: BorderRadius.circular(20),
                           border: _joined
-                              ? Border.all(color: Colors.white.withValues(alpha: 0.1))
+                              ? Border.all(
+                                  color: AppColors.textPrimary.withValues(
+                                    alpha: 0.1,
+                                  ),
+                                )
                               : null,
                         ),
                         child: Center(
@@ -138,8 +157,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             _joined ? 'Joined' : 'Join Group',
                             style: TextStyle(
                               color: _joined
-                                  ? Colors.white
-                                  : const Color(0xFF090A0F),
+                                  ? AppColors.textPrimary
+                                  : AppColors.onAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
                             ),
@@ -157,7 +176,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               const Text(
                 'Group Discussions',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppColors.textPrimary,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -175,9 +194,11 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.03),
+                      color: AppColors.textPrimary.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+                      border: Border.all(
+                        color: AppColors.textPrimary.withValues(alpha: 0.06),
+                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +209,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             Text(
                               post['author']!,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: AppColors.textPrimary,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
@@ -196,7 +217,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             Text(
                               post['time']!,
                               style: const TextStyle(
-                                color: Colors.white38,
+                                color: AppColors.textSecondary,
                                 fontSize: 11,
                               ),
                             ),
@@ -206,7 +227,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         Text(
                           post['content']!,
                           style: TextStyle(
-                            color: Colors.white.withValues(alpha: 0.8),
+                            color: AppColors.textPrimary.withValues(alpha: 0.8),
                             fontSize: 13,
                             height: 1.4,
                           ),
@@ -216,14 +237,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           children: [
                             Icon(
                               Icons.thumb_up_alt_outlined,
-                              color: Colors.white.withValues(alpha: 0.5),
+                              color: AppColors.textPrimary.withValues(
+                                alpha: 0.5,
+                              ),
                               size: 14,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               post['likes']!,
                               style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.5),
+                                color: AppColors.textPrimary.withValues(
+                                  alpha: 0.5,
+                                ),
                                 fontSize: 11,
                               ),
                             ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
 
 class GlassScaffold extends StatelessWidget {
   final Widget child;
@@ -13,20 +14,8 @@ class GlassScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF090A0F),
-      body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF111218), // Dark slate grey top
-              Color(0xFF07080C), // Deep obsidian bottom
-            ],
-          ),
-        ),
-        child: child,
-      ),
+      backgroundColor: AppColors.pageBackground,
+      body: Container(color: AppColors.pageBackground, child: child),
       bottomNavigationBar: bottomNavigationBar,
     );
   }

@@ -1,3 +1,4 @@
+import 'package:zitface_mobile/theme/app_theme.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 
@@ -5,11 +6,7 @@ class GlassCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
 
-  const GlassCard({
-    super.key,
-    required this.child,
-    this.padding,
-  });
+  const GlassCard({super.key, required this.child, this.padding});
 
   @override
   Widget build(BuildContext context) {
@@ -20,12 +17,16 @@ class GlassCard extends StatelessWidget {
         child: Container(
           padding: padding ?? const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF1A1B26).withValues(alpha: 0.55), // Premium translucent dark tint
+            color: AppColors.surface,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(
-              color: Colors.white.withValues(alpha: 0.08), // Sharp frosted metallic edge
-              width: 1,
-            ),
+            border: Border.all(color: const Color(0xFFDADDE1), width: 1),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 12,
+                offset: const Offset(0, 3),
+              ),
+            ],
           ),
           child: child,
         ),
