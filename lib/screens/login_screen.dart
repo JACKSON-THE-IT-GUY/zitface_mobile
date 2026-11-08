@@ -1,22 +1,34 @@
-import 'package:zitface_mobile/theme/app_theme.dart';
 import 'dart:ui';
-import 'package:flutter/material.dart';
-import 'main_shell_screen.dart';
 
-// Import your main shell screen here so the login button can navigate to it
-// import 'main_shell_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:zitface_mobile/services/zitface_backend.dart';
+import 'package:zitface_mobile/theme/app_theme.dart';
+import '../widget/auth_widgets.dart';
+import 'signup_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.initialEmail = '', this.message});
+
+  final String initialEmail;
+  final String? message;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
+  late final TextEditingController _emailController;
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
+  bool _isSendingReset = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailController = TextEditingController(text: widget.initialEmail);
+  }
 
   @override
   void dispose() {
@@ -25,38 +37,98 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  Future<void> _signIn() async {
+    if (_isSubmitting) return;
+    final email = _emailController.text.trim();
+    final password = _passwordController.text;
+    if (!ZitfaceBackend.isConfigured) {
+      _showMessage('Configure Supabase to sign in.');
+      return;
+    }
+    if (email.isEmpty || password.isEmpty) {
+      _showMessage('Enter your email address and password.');
+      return;
+    }
+
+    setState(() => _isSubmitting = true);
+    try {
+      await ZitfaceBackend.client.auth.signInWithPassword(
+        email: email,
+        password: password,
+      );
+    } on AuthException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on Exception catch (error) {
+      if (mounted) _showMessage('Could not sign in: $error');
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
+
+  Future<void> _sendPasswordReset() async {
+    if (_isSendingReset) return;
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showMessage('Enter your email address first.');
+      return;
+    }
+    if (!ZitfaceBackend.isConfigured) {
+      _showMessage('Configure Supabase to reset a password.');
+      return;
+    }
+
+    setState(() => _isSendingReset = true);
+    try {
+      await ZitfaceBackend.client.auth.resetPasswordForEmail(email);
+      if (mounted) _showMessage('Password reset instructions were sent.');
+    } on AuthException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on Exception catch (error) {
+      if (mounted) _showMessage('Could not send reset email: $error');
+    } finally {
+      if (mounted) setState(() => _isSendingReset = false);
+    }
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Prevents the keyboard from crushing or stretching the layout elements
       resizeToAvoidBottomInset: true,
       body: Container(
         width: double.infinity,
         height: double.infinity,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [AppColors.pageBackground, AppColors.secondarySurface],
-            stops: [0.0, 0.7],
+            colors: [
+              Theme.of(context).scaffoldBackgroundColor,
+              Theme.of(context).colorScheme.surfaceContainerHighest,
+            ],
+            stops: const [0.0, 0.7],
           ),
         ),
         child: SafeArea(
           child: Center(
-            // SingleChildScrollView stops constraints from stretching vertically
             child: SingleChildScrollView(
               physics: const BouncingScrollPhysics(),
               padding: const EdgeInsets.symmetric(
                 horizontal: 24.0,
                 vertical: 20.0,
               ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // App Branding
+              child: AuthContentWidth(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
                   const Text(
-                    "ZITFACE",
+                    'ZITFACE',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: AppColors.accent,
@@ -66,55 +138,73 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    "Connect with the campus network",
+                  Text(
+                    'Connect with the campus network',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 14,
                     ),
                   ),
-                  const SizedBox(height: 48),
-
-                  // Frosted Glass Input Container
+                  const SizedBox(height: 32),
+                  if (widget.message != null) ...[
+                    Text(
+                      widget.message!,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
                   _buildGlassInputCard(
                     child: Column(
                       children: [
-                        // Email Field
                         TextField(
                           controller: _emailController,
                           keyboardType: TextInputType.emailAddress,
-                          style: const TextStyle(color: AppColors.textPrimary),
+                          autocorrect: false,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                           decoration: _buildInputDecoration(
-                            hintText: "SIN / Email Address",
+                            hintText: 'Email address',
                             icon: Icons.alternate_email,
                           ),
                         ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(vertical: 8.0),
-                          child: Divider(color: AppColors.border, height: 1),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Divider(
+                            color: Theme.of(context).colorScheme.outline,
+                            height: 1,
+                          ),
                         ),
-                        // Password Field
                         TextField(
                           controller: _passwordController,
                           obscureText: _obscurePassword,
-                          style: const TextStyle(color: AppColors.textPrimary),
+                          onSubmitted: (_) => _signIn(),
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                          ),
                           decoration: _buildInputDecoration(
-                            hintText: "Password",
+                            hintText: 'Password',
                             icon: Icons.lock_outline,
                             suffixIcon: IconButton(
+                              tooltip: _obscurePassword
+                                  ? 'Show password'
+                                  : 'Hide password',
                               icon: Icon(
                                 _obscurePassword
                                     ? Icons.visibility_off
                                     : Icons.visibility,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 size: 20,
                               ),
-                              onPressed: () {
-                                setState(() {
-                                  _obscurePassword = !_obscurePassword;
-                                });
-                              },
+                              onPressed: () => setState(
+                                () => _obscurePassword = !_obscurePassword,
+                              ),
                             ),
                           ),
                         ),
@@ -122,17 +212,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   const SizedBox(height: 24),
-
-                  // Login Button
                   ElevatedButton(
-                    onPressed: () {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const MainShellScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: _isSubmitting ? null : _signIn,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.accent,
                       foregroundColor: AppColors.onAccent,
@@ -142,28 +223,42 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       elevation: 0,
                     ),
-                    child: const Text(
-                      "Sign In",
-                      style: TextStyle(
+                    child: Text(
+                      _isSubmitting ? 'Signing in...' : 'Sign In',
+                      style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 16),
-
-                  // Forgot Password Context Links
                   TextButton(
-                    onPressed: () {},
-                    child: const Text(
-                      "Forgot Password?",
+                    onPressed: _isSendingReset ? null : _sendPasswordReset,
+                    child: Text(
+                      _isSendingReset
+                          ? 'Sending reset email...'
+                          : 'Forgot Password?',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                     ),
                   ),
-                ],
+                  TextButton(
+                    onPressed: () => Navigator.of(context).pushReplacement(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const SignUpScreen(),
+                      ),
+                    ),
+                    child: Text(
+                      'Create an account',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -172,7 +267,6 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 
-  // Helper widget to keep UI flat, modular, and frosted without stretching components
   Widget _buildGlassInputCard({required Widget child}) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(16),
@@ -181,9 +275,12 @@ class _LoginScreenState extends State<LoginScreen> {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: Theme.of(context).colorScheme.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border, width: 0.5),
+            border: Border.all(
+              color: Theme.of(context).colorScheme.outline,
+              width: 0.5,
+            ),
           ),
           child: child,
         ),
@@ -198,8 +295,15 @@ class _LoginScreenState extends State<LoginScreen> {
   }) {
     return InputDecoration(
       hintText: hintText,
-      hintStyle: const TextStyle(color: AppColors.textSecondary, fontSize: 14),
-      prefixIcon: Icon(icon, color: AppColors.textSecondary, size: 20),
+      hintStyle: TextStyle(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        fontSize: 14,
+      ),
+      prefixIcon: Icon(
+        icon,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        size: 20,
+      ),
       suffixIcon: suffixIcon,
       border: InputBorder.none,
       focusedBorder: InputBorder.none,

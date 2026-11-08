@@ -1,5 +1,5 @@
-import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:zitface_mobile/widget/glass_card.dart';
 import 'chat_detail_screen.dart';
 
 class ChatListScreen extends StatefulWidget {
@@ -48,7 +48,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -58,10 +58,10 @@ class _ChatListScreenState extends State<ChatListScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Messages',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -69,15 +69,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: AppColors.textPrimary.withValues(alpha: 0.06),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.06),
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: AppColors.textPrimary.withValues(alpha: 0.08),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.08),
                       ),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.edit_note_rounded,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       size: 20,
                     ),
                   ),
@@ -94,30 +98,36 @@ class _ChatListScreenState extends State<ChatListScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.04),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.08),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(
                       Icons.search,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 20,
                     ),
                     SizedBox(width: 10),
                     Expanded(
                       child: TextField(
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search conversations...',
                           hintStyle: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                           border: InputBorder.none,
@@ -151,28 +161,26 @@ class _ChatListScreenState extends State<ChatListScreen> {
                         ),
                       );
                     },
-                    child: Container(
+                    child: GlassCard(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: AppColors.textPrimary.withValues(alpha: 0.03),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                          color: AppColors.textPrimary.withValues(alpha: 0.06),
-                        ),
-                      ),
+                      borderRadius: 18,
                       child: Row(
                         children: [
                           Stack(
                             children: [
                               CircleAvatar(
                                 radius: 24,
-                                backgroundColor: AppColors.secondarySurface
+                                backgroundColor: Theme.of(context)
+                                    .colorScheme
+                                    .surfaceContainerHighest
                                     .withValues(alpha: 0.08),
                                 child: Text(
                                   chat['name'][0],
-                                  style: const TextStyle(
-                                    color: AppColors.textPrimary,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
                                     fontSize: 16,
                                     fontWeight: FontWeight.bold,
                                   ),
@@ -189,7 +197,9 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                       color: const Color(0xFF10B981),
                                       shape: BoxShape.circle,
                                       border: Border.all(
-                                        color: AppColors.textPrimary,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                         width: 2,
                                       ),
                                     ),
@@ -208,16 +218,20 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                   children: [
                                     Text(
                                       chat['name'],
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
                                     Text(
                                       chat['time'],
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -233,8 +247,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                         overflow: TextOverflow.ellipsis,
                                         style: TextStyle(
                                           color: chat['unread'] > 0
-                                              ? AppColors.textPrimary
-                                              : AppColors.textSecondary,
+                                              ? Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface
+                                              : Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurfaceVariant,
                                           fontSize: 13,
                                           fontWeight: chat['unread'] > 0
                                               ? FontWeight.w600
@@ -250,15 +268,19 @@ class _ChatListScreenState extends State<ChatListScreen> {
                                           vertical: 2,
                                         ),
                                         decoration: BoxDecoration(
-                                          color: AppColors.textPrimary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                           borderRadius: BorderRadius.circular(
                                             10,
                                           ),
                                         ),
                                         child: Text(
                                           '${chat['unread']}',
-                                          style: const TextStyle(
-                                            color: AppColors.textPrimary,
+                                          style: TextStyle(
+                                            color: Theme.of(
+                                              context,
+                                            ).colorScheme.onSurface,
                                             fontSize: 11,
                                             fontWeight: FontWeight.bold,
                                           ),

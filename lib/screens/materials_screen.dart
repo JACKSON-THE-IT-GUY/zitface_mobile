@@ -99,10 +99,10 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'Study Materials',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 24,
                         fontWeight: FontWeight.bold,
                       ),
@@ -111,7 +111,9 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                     Text(
                       'Find notes and resources by CBU school and program.',
                       style: TextStyle(
-                        color: AppColors.textPrimary.withValues(alpha: 0.65),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.65),
                         fontSize: 13,
                       ),
                     ),
@@ -120,37 +122,39 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                       controller: _searchController,
                       onChanged: (value) =>
                           setState(() => _query = value.trim()),
-                      style: const TextStyle(color: AppColors.textPrimary),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
+                      ),
                       decoration: InputDecoration(
                         hintText: 'Search schools',
-                        hintStyle: const TextStyle(
-                          color: AppColors.textSecondary,
+                        hintStyle: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
-                        prefixIcon: const Icon(
+                        prefixIcon: Icon(
                           Icons.search,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         filled: true,
-                        fillColor: AppColors.textPrimary.withValues(
-                          alpha: 0.07,
-                        ),
+                        fillColor: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.07),
                         contentPadding: const EdgeInsets.symmetric(
                           vertical: 14,
                         ),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide(
-                            color: AppColors.textPrimary.withValues(
-                              alpha: 0.08,
-                            ),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.08),
                           ),
                         ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
                           borderSide: BorderSide(
-                            color: AppColors.textPrimary.withValues(
-                              alpha: 0.08,
-                            ),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.08),
                           ),
                         ),
                         focusedBorder: OutlineInputBorder(
@@ -165,7 +169,9 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                     Text(
                       'ALL SCHOOLS',
                       style: TextStyle(
-                        color: AppColors.textPrimary.withValues(alpha: 0.55),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.55),
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1.2,
@@ -183,7 +189,9 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                     padding: const EdgeInsets.all(24),
                     child: Text(
                       'No schools match "$_query".',
-                      style: const TextStyle(color: AppColors.textSecondary),
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
                       textAlign: TextAlign.center,
                     ),
                   ),
@@ -216,7 +224,9 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
         child: Theme(
           data: Theme.of(context).copyWith(
             dividerColor: Colors.transparent,
-            splashColor: AppColors.textPrimary.withValues(alpha: 0.04),
+            splashColor: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.04),
           ),
           child: ExpansionTile(
             tilePadding: const EdgeInsets.symmetric(
@@ -231,45 +241,51 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                 color: AppColors.accent.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(13),
               ),
-              child: Icon(school.icon, color: AppColors.textPrimary, size: 21),
+              child: Icon(
+                school.icon,
+                color: Theme.of(context).colorScheme.onSurface,
+                size: 21,
+              ),
             ),
             title: Text(
               school.name,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
               ),
             ),
             subtitle: Text(
               '${school.abbreviation} · Programs and materials',
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 11,
               ),
             ),
-            iconColor: AppColors.textSecondary,
-            collapsedIconColor: AppColors.textSecondary,
+            iconColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            collapsedIconColor: Theme.of(context).colorScheme.onSurfaceVariant,
             children: [
               Container(
                 width: double.infinity,
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.05),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(14),
                 ),
-                child: const Column(
+                child: Column(
                   children: [
                     Icon(
                       Icons.menu_book_outlined,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 26,
                     ),
                     SizedBox(height: 8),
                     Text(
                       'Materials are being collected',
                       style: TextStyle(
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -279,7 +295,7 @@ class _MaterialsScreenState extends State<MaterialsScreen> {
                     Text(
                       'Program-specific notes, past papers, and study guides will appear here once added.',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 12,
                       ),
                       textAlign: TextAlign.center,

@@ -1,5 +1,7 @@
-import 'package:zitface_mobile/theme/app_theme.dart';
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import '../services/zitface_backend.dart';
 import 'chat_detail_screen.dart';
 
 class ChatsScreen extends StatefulWidget {
@@ -11,17 +13,23 @@ class ChatsScreen extends StatefulWidget {
 
 class _ChatsScreenState extends State<ChatsScreen> {
   final TextEditingController _searchController = TextEditingController();
+  final bool _cloudMode = ZitfaceBackend.isConfigured;
   bool _showUnreadOnly = false;
+  bool _isLoadingCloudChats = ZitfaceBackend.isConfigured;
 
-  final List<Map<String, dynamic>> _activePeers = [
+  final List<Map<String, dynamic>> _activePeers = ZitfaceBackend.isConfigured
+      ? []
+      : [
     {'name': 'SAM ', 'school': 'SICT', 'isOnline': true},
     {'name': 'JOE', 'school': 'SOE', 'isOnline': true},
     {'name': 'PHANSCIAH', 'school': 'SICT', 'isOnline': true},
     {'name': 'MATEO', 'school': 'SMNS', 'isOnline': true},
     {'name': 'PETER', 'school': 'SBE', 'isOnline': false},
-  ];
+      ];
 
-  final List<Map<String, dynamic>> _chatThreads = [
+    final List<Map<String, dynamic>> _chatThreads = ZitfaceBackend.isConfigured
+      ? []
+      : [
     {
       'name': 'Phanciah M.',
       'school': 'Computer Science',
@@ -67,7 +75,66 @@ class _ChatsScreenState extends State<ChatsScreen> {
       'isOnline': false,
       'avatarIcon': Icons.architecture_outlined,
     },
-  ];
+        ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (_cloudMode) unawaited(_loadCloudChats());
+  }
+
+  Future<void> _loadCloudChats() async {
+    try {
+      final threads = await ZitfaceBackend.loadConversations();
+      final profiles = await ZitfaceBackend.loadDiscoverableProfiles();
+      if (!mounted) return;
+      setState(() {
+        _chatThreads
+          ..clear()
+          ..addAll(
+            threads.map(
+              (thread) => {
+                ...thread,
+                'avatarIcon': thread['avatarIcon'] == 'group'
+                    ? Icons.groups_outlined
+                    : Icons.person_outline,
+                'time': _formatTime(thread['time'] as String?),
+              },
+            ),
+          );
+        _activePeers
+          ..clear()
+          ..addAll(
+            profiles.map(
+              (profile) => {
+                'id': profile['id'],
+                'name': profile['display_name'],
+                'school': profile['school'] ?? '',
+                'isOnline': false,
+              },
+            ),
+          );
+        _isLoadingCloudChats = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoadingCloudChats = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load messages: $error')),
+      );
+    }
+  }
+
+  String _formatTime(String? value) {
+    final date = value == null ? null : DateTime.tryParse(value)?.toLocal();
+    if (date == null) return '';
+    final now = DateTime.now();
+    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+      final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
+      return '$hour:${date.minute.toString().padLeft(2, '0')} ${date.hour < 12 ? 'AM' : 'PM'}';
+    }
+    return '${date.month}/${date.day}';
+  }
 
   @override
   void dispose() {
@@ -75,11 +142,27 @@ class _ChatsScreenState extends State<ChatsScreen> {
     super.dispose();
   }
 
-  void _openChat({
+  Future<void> _openChat({
     required String name,
     required String handle,
     required bool isOnline,
-  }) {
+    String? peerId,
+    String? conversationId,
+  }) async {
+    if (_cloudMode) {
+      try {
+        conversationId ??= await ZitfaceBackend.openDirectConversation(
+          peerId!,
+        );
+      } on Exception catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not open conversation: $error')),
+        );
+        return;
+      }
+    }
+    if (!mounted) return;
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -87,6 +170,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
           peerName: name.trim(),
           peerHandle: handle,
           isOnline: isOnline,
+          conversationId: conversationId,
         ),
       ),
     );
@@ -95,19 +179,19 @@ class _ChatsScreenState extends State<ChatsScreen> {
   void _showNewMessageSheet() {
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       showDragHandle: true,
       builder: (sheetContext) => SafeArea(
         child: ListView(
           shrinkWrap: true,
           padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           children: [
-            const Padding(
+            Padding(
               padding: EdgeInsets.only(bottom: 12),
               child: Text(
                 'New message',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
                 ),
@@ -117,25 +201,31 @@ class _ChatsScreenState extends State<ChatsScreen> {
               final name = (peer['name'] as String).trim();
               return ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppColors.secondarySurface.withValues(
-                    alpha: 0.08,
-                  ),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.08),
                   child: Text(
                     name.isEmpty ? '?' : name[0].toUpperCase(),
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                   ),
                 ),
                 title: Text(
                   name,
-                  style: const TextStyle(color: AppColors.textPrimary),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
                 ),
                 subtitle: Text(
                   peer['school'] as String,
-                  style: const TextStyle(color: AppColors.textSecondary),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
                 ),
-                trailing: const Icon(
+                trailing: Icon(
                   Icons.chat_bubble_outline,
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
                 onTap: () {
                   Navigator.pop(sheetContext);
@@ -143,6 +233,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     name: name,
                     handle: peer['school'] as String,
                     isOnline: peer['isOnline'] as bool,
+                    peerId: peer['id'] as String?,
                   );
                 },
               );
@@ -178,10 +269,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Messages',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -189,9 +280,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                   IconButton(
                     tooltip: 'New message',
                     onPressed: _showNewMessageSheet,
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.edit_outlined,
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                     ),
                   ),
                 ],
@@ -204,19 +295,19 @@ class _ChatsScreenState extends State<ChatsScreen> {
               child: TextField(
                 controller: _searchController,
                 onChanged: (_) => setState(() {}),
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 14,
                 ),
                 decoration: InputDecoration(
                   hintText: 'Search messages or contacts',
-                  hintStyle: const TextStyle(
-                    color: AppColors.textSecondary,
+                  hintStyle: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 13,
                   ),
-                  prefixIcon: const Icon(
+                  prefixIcon: Icon(
                     Icons.search,
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
                   suffixIcon: query.isEmpty
@@ -227,31 +318,41 @@ class _ChatsScreenState extends State<ChatsScreen> {
                             _searchController.clear();
                             setState(() {});
                           },
-                          icon: const Icon(
+                          icon: Icon(
                             Icons.close,
-                            color: AppColors.textSecondary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             size: 18,
                           ),
                         ),
                   filled: true,
-                  fillColor: AppColors.textPrimary.withValues(alpha: 0.05),
+                  fillColor: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.05),
                   contentPadding: const EdgeInsets.symmetric(vertical: 10),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(16),
                     borderSide: BorderSide(
-                      color: AppColors.textPrimary.withValues(alpha: 0.3),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.3),
                     ),
                   ),
                 ),
@@ -267,43 +368,49 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     label: Text('All ${_chatThreads.length}'),
                     selected: !_showUnreadOnly,
                     onSelected: (_) => setState(() => _showUnreadOnly = false),
-                    selectedColor: AppColors.textPrimary.withValues(
-                      alpha: 0.18,
-                    ),
-                    backgroundColor: AppColors.secondarySurface.withValues(
-                      alpha: 0.04,
-                    ),
+                    selectedColor: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.18),
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.04),
                     labelStyle: TextStyle(
                       color: !_showUnreadOnly
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 12,
                     ),
                     side: BorderSide(
-                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                   const SizedBox(width: 8),
-                  ChoiceChip(
+                  if (!_cloudMode) ChoiceChip(
                     label: Text(
                       'Unread ${_chatThreads.where((chat) => (chat['unread'] as int) > 0).length}',
                     ),
                     selected: _showUnreadOnly,
                     onSelected: (_) => setState(() => _showUnreadOnly = true),
-                    selectedColor: AppColors.textPrimary.withValues(
-                      alpha: 0.18,
-                    ),
-                    backgroundColor: AppColors.secondarySurface.withValues(
-                      alpha: 0.04,
-                    ),
+                    selectedColor: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.18),
+                    backgroundColor: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.04),
                     labelStyle: TextStyle(
                       color: _showUnreadOnly
-                          ? AppColors.textPrimary
-                          : AppColors.textSecondary,
+                          ? Theme.of(context).colorScheme.onSurface
+                          : Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 12,
                     ),
                     side: BorderSide(
-                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                 ],
@@ -312,13 +419,13 @@ class _ChatsScreenState extends State<ChatsScreen> {
             const SizedBox(height: 14),
 
             // Active Peers Story Tray
-            if (!_showUnreadOnly && query.isEmpty) ...[
-              const Padding(
+            if (!_cloudMode && !_showUnreadOnly && query.isEmpty) ...[
+              Padding(
                 padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
                 child: Text(
                   'ACTIVE NOW',
                   style: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1,
@@ -352,13 +459,15 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                   height: 52,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: AppColors.textPrimary.withValues(
-                                      alpha: 0.08,
-                                    ),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.08),
                                     border: Border.all(
-                                      color: AppColors.textPrimary.withValues(
-                                        alpha: 0.25,
-                                      ),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.25),
                                       width: 1.5,
                                     ),
                                   ),
@@ -367,8 +476,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                       name.isEmpty
                                           ? '?'
                                           : name[0].toUpperCase(),
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
                                       ),
@@ -388,7 +499,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                         ), // Active online indicator
                                         shape: BoxShape.circle,
                                         border: Border.all(
-                                          color: AppColors.textPrimary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                           width: 2,
                                         ),
                                       ),
@@ -399,8 +512,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
                             const SizedBox(height: 6),
                             Text(
                               name,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
@@ -416,33 +531,45 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
             // Chat Threads
             Expanded(
-              child: filteredThreads.isEmpty
+              child: _isLoadingCloudChats
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredThreads.isEmpty
                   ? Center(
                       child: Padding(
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            const Icon(
+                            Icon(
                               Icons.forum_outlined,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               size: 32,
                             ),
                             const SizedBox(height: 10),
                             Text(
                               query.isNotEmpty
                                   ? 'No conversations found'
-                                  : 'No unread conversations',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                                  : _showUnreadOnly
+                                  ? 'No unread conversations'
+                                  : 'No conversations yet',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
                             const SizedBox(height: 4),
-                            const Text(
-                              'Try another search or switch to All.',
+                            Text(
+                                _cloudMode
+                                  ? 'Start a new message to begin a conversation.'
+                                  : 'Try another search or switch to All.',
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                               textAlign: TextAlign.center,
@@ -473,21 +600,17 @@ class _ChatsScreenState extends State<ChatsScreen> {
                             padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
                               color: hasUnread
-                                  ? AppColors.textPrimary.withValues(
-                                      alpha: 0.08,
-                                    )
-                                  : AppColors.textPrimary.withValues(
-                                      alpha: 0.03,
-                                    ),
+                                  ? Theme.of(context).colorScheme.onSurface
+                                        .withValues(alpha: 0.08)
+                                  : Theme.of(context).colorScheme.onSurface
+                                        .withValues(alpha: 0.03),
                               borderRadius: BorderRadius.circular(16),
                               border: Border.all(
                                 color: hasUnread
-                                    ? AppColors.textPrimary.withValues(
-                                        alpha: 0.18,
-                                      )
-                                    : AppColors.textPrimary.withValues(
-                                        alpha: 0.06,
-                                      ),
+                                    ? Theme.of(context).colorScheme.onSurface
+                                          .withValues(alpha: 0.18)
+                                    : Theme.of(context).colorScheme.onSurface
+                                          .withValues(alpha: 0.06),
                               ),
                             ),
                             child: Row(
@@ -498,15 +621,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                       width: 48,
                                       height: 48,
                                       decoration: BoxDecoration(
-                                        color: AppColors.textPrimary.withValues(
-                                          alpha: 0.06,
-                                        ),
+                                        color: Theme.of(context)
+                                            .colorScheme
+                                            .onSurface
+                                            .withValues(alpha: 0.06),
                                         borderRadius: BorderRadius.circular(14),
                                       ),
                                       child: Center(
                                         child: Icon(
                                           chat['avatarIcon'] as IconData,
-                                          color: AppColors.textPrimary,
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurface,
                                           size: 23,
                                         ),
                                       ),
@@ -522,7 +648,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                             color: const Color(0xFF10B981),
                                             shape: BoxShape.circle,
                                             border: Border.all(
-                                              color: AppColors.textPrimary,
+                                              color: Theme.of(
+                                                context,
+                                              ).colorScheme.onSurface,
                                               width: 2,
                                             ),
                                           ),
@@ -544,7 +672,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                               maxLines: 1,
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
-                                                color: AppColors.textPrimary,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface,
                                                 fontWeight: hasUnread
                                                     ? FontWeight.bold
                                                     : FontWeight.w500,
@@ -557,8 +687,12 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                             chat['time'] as String,
                                             style: TextStyle(
                                               color: hasUnread
-                                                  ? AppColors.textPrimary
-                                                  : AppColors.textSecondary,
+                                                  ? Theme.of(
+                                                      context,
+                                                    ).colorScheme.onSurface
+                                                  : Theme.of(context)
+                                                        .colorScheme
+                                                        .onSurfaceVariant,
                                               fontSize: 10,
                                             ),
                                           ),
@@ -567,8 +701,10 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                       const SizedBox(height: 2),
                                       Text(
                                         chat['school'] as String,
-                                        style: const TextStyle(
-                                          color: AppColors.textSecondary,
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
                                           fontSize: 10,
                                         ),
                                       ),
@@ -582,8 +718,12 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                               overflow: TextOverflow.ellipsis,
                                               style: TextStyle(
                                                 color: hasUnread
-                                                    ? AppColors.textSecondary
-                                                    : AppColors.textSecondary,
+                                                    ? Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant
+                                                    : Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurfaceVariant,
                                                 fontSize: 12,
                                                 fontWeight: hasUnread
                                                     ? FontWeight.w600
@@ -602,15 +742,19 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                                     vertical: 2,
                                                   ),
                                               decoration: BoxDecoration(
-                                                color: AppColors.textPrimary
+                                                color: Theme.of(context)
+                                                    .colorScheme
+                                                    .onSurface
                                                     .withValues(alpha: 0.25),
                                                 borderRadius:
                                                     BorderRadius.circular(10),
                                               ),
                                               child: Text(
                                                 '${chat['unread']}',
-                                                style: const TextStyle(
-                                                  color: AppColors.textPrimary,
+                                                style: TextStyle(
+                                                  color: Theme.of(
+                                                    context,
+                                                  ).colorScheme.onSurface,
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold,
                                                 ),

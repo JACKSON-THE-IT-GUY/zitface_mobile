@@ -13,6 +13,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final _priceController = TextEditingController();
   final _descriptionController = TextEditingController();
   String _selectedCategory = 'Textbooks';
+  String? _errorMessage;
 
   final List<String> _categories = [
     'Textbooks',
@@ -34,11 +35,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     final title = _titleController.text.trim();
     final price = _priceController.text.trim();
 
-    if (title.isEmpty || price.isEmpty) return;
+    final priceAmount = double.tryParse(price);
+    if (title.isEmpty || priceAmount == null || priceAmount < 0) {
+      setState(() => _errorMessage = 'Enter a title and a valid price.');
+      return;
+    }
 
     Navigator.pop(context, {
       'title': title,
       'price': 'K$price',
+      'priceAmount': price,
       'category': _selectedCategory,
       'description': _descriptionController.text.trim(),
       'time': 'Just now',
@@ -55,10 +61,12 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(
-            color: AppColors.textPrimary.withValues(alpha: 0.1),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.1),
           ),
         ),
         child: SingleChildScrollView(
@@ -72,7 +80,7 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -85,18 +93,18 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Text(
+                    child: Text(
                       'Cancel',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 14,
                       ),
                     ),
                   ),
-                  const Text(
+                  Text(
                     'List an Item',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -129,10 +137,10 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               const SizedBox(height: 20),
 
               // Category Selector
-              const Text(
+              Text(
                 'Category',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 12,
                   fontWeight: FontWeight.w500,
                 ),
@@ -160,13 +168,16 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                         ),
                         decoration: BoxDecoration(
                           color: isSelected
-                              ? AppColors.textPrimary
-                              : AppColors.textPrimary.withValues(alpha: 0.04),
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.04),
                           borderRadius: BorderRadius.circular(18),
                           border: Border.all(
                             color: isSelected
-                                ? AppColors.textPrimary
-                                : AppColors.textPrimary.withValues(alpha: 0.08),
+                                ? Theme.of(context).colorScheme.onSurface
+                                : Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.08),
                           ),
                         ),
                         child: Text(
@@ -174,7 +185,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                           style: TextStyle(
                             color: isSelected
                                 ? AppColors.onAccent
-                                : AppColors.textSecondary,
+                                : Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                             fontWeight: isSelected
                                 ? FontWeight.bold
@@ -208,6 +221,13 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
                 controller: _descriptionController,
                 maxLines: 3,
               ),
+              if (_errorMessage != null) ...[
+                const SizedBox(height: 10),
+                Text(
+                  _errorMessage!,
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
 
               const SizedBox(height: 20),
             ],
@@ -229,8 +249,8 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -239,21 +259,28 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppColors.textPrimary.withValues(alpha: 0.08),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.08),
             ),
           ),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
             keyboardType: keyboardType,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 14,
+            ),
             decoration: InputDecoration(
               hintText: hint,
-              hintStyle: const TextStyle(
-                color: AppColors.textSecondary,
+              hintStyle: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 13,
               ),
               border: InputBorder.none,

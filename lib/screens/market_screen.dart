@@ -1,6 +1,9 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
+import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
+import '../services/zitface_backend.dart';
 import 'create_listing_screen.dart';
+import 'market_detail_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
   const MarketplaceScreen({super.key});
@@ -11,6 +14,9 @@ class MarketplaceScreen extends StatefulWidget {
 
 class _MarketplaceScreenState extends State<MarketplaceScreen> {
   String _activeCategory = 'All';
+  final bool _cloudMode = ZitfaceBackend.isConfigured;
+  final TextEditingController _searchController = TextEditingController();
+  bool _isLoadingListings = ZitfaceBackend.isConfigured;
 
   final List<String> _categories = [
     'All',
@@ -18,9 +24,12 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     'Electronics',
     'Hostel Gear',
     'Apparel',
+    'Services',
   ];
 
-  final List<Map<String, String>> _listings = [
+  final List<Map<String, dynamic>> _listings = ZitfaceBackend.isConfigured
+      ? []
+      : [
     {
       'title': 'Engineering Maths Vol 1',
       'price': 'K150',
@@ -49,7 +58,57 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       'seller': 'Jackson N.',
       'time': '2 days ago',
     },
-  ];
+        ];
+
+  @override
+  void initState() {
+    super.initState();
+    if (_cloudMode) _loadListings();
+  }
+
+  Future<void> _loadListings() async {
+    try {
+      final rows = await ZitfaceBackend.loadMarketListings();
+      if (!mounted) return;
+      setState(() {
+        _listings
+          ..clear()
+          ..addAll(rows.map(_formatListing));
+        _isLoadingListings = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() => _isLoadingListings = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not load listings: $error')),
+      );
+    }
+  }
+
+  Map<String, dynamic> _formatListing(Map<String, dynamic> row) {
+    final price = (row['price'] as num).toDouble();
+    final createdAt = DateTime.tryParse(row['created_at'] as String)?.toLocal();
+    final age = createdAt == null ? null : DateTime.now().difference(createdAt);
+    final time = age == null || age.inMinutes < 1
+        ? 'Just now'
+        : age.inHours < 1
+        ? '${age.inMinutes} min ago'
+        : age.inDays < 1
+        ? '${age.inHours} hr ago'
+        : '${age.inDays} days ago';
+    return {
+      ...row,
+      'price': 'K${price.toStringAsFixed(price == price.roundToDouble() ? 0 : 2)}',
+      'seller': row['seller'] as String? ?? 'ZitFace member',
+      'time': time,
+    };
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _openCreateListing() async {
     final newListing = await showModalBottomSheet<Map<String, String>>(
@@ -59,23 +118,43 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       builder: (context) => const CreateListingScreen(),
     );
 
-    if (newListing != null) {
-      setState(() {
-        _listings.insert(0, newListing);
-      });
+    if (newListing == null) return;
+    if (_cloudMode) {
+      try {
+        final row = await ZitfaceBackend.createMarketListing(
+          title: newListing['title']!,
+          price: newListing['priceAmount']!,
+          category: newListing['category']!,
+          description: newListing['description']!,
+        );
+        if (!mounted) return;
+        setState(() => _listings.insert(0, _formatListing(row)));
+      } on Exception catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not publish listing: $error')),
+        );
+      }
+      return;
     }
+    setState(() => _listings.insert(0, newListing));
   }
 
   @override
   Widget build(BuildContext context) {
-    final filteredListings = _activeCategory == 'All'
-        ? _listings
-        : _listings
-              .where((item) => item['category'] == _activeCategory)
-              .toList();
+    final query = _searchController.text.trim().toLowerCase();
+    final filteredListings = _listings.where((item) {
+      final matchesCategory =
+        _activeCategory == 'All' || item['category'] == _activeCategory;
+      final matchesQuery =
+        query.isEmpty ||
+        (item['title'] as String).toLowerCase().contains(query) ||
+        (item['seller'] as String).toLowerCase().contains(query);
+      return matchesCategory && matchesQuery;
+    }).toList();
 
     return Scaffold(
-      backgroundColor: AppColors.pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -85,10 +164,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text(
+                  Text(
                     'Campus Market',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
                     ),
@@ -133,30 +212,38 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                   vertical: 4,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.04),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.08),
                   ),
                 ),
-                child: const Row(
+                child: Row(
                   children: [
                     Icon(
                       Icons.search,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 20,
                     ),
                     SizedBox(width: 10),
                     Expanded(
                       child: TextField(
+                        controller: _searchController,
+                        onChanged: (_) => setState(() {}),
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
                         ),
                         decoration: InputDecoration(
                           hintText: 'Search books, laptops, electronics...',
                           hintStyle: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                           border: InputBorder.none,
@@ -194,13 +281,17 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: isSelected
-                            ? AppColors.textPrimary
-                            : AppColors.textPrimary.withValues(alpha: 0.04),
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
                           color: isSelected
-                              ? AppColors.textPrimary
-                              : AppColors.textPrimary.withValues(alpha: 0.08),
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.08),
                         ),
                       ),
                       child: Text(
@@ -208,7 +299,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                         style: TextStyle(
                           color: isSelected
                               ? AppColors.onAccent
-                              : AppColors.textSecondary,
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 12,
                           fontWeight: isSelected
                               ? FontWeight.bold
@@ -225,12 +316,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
             // Marketplace Grid
             Expanded(
-              child: filteredListings.isEmpty
-                  ? const Center(
+                child: _isLoadingListings
+                  ? const Center(child: CircularProgressIndicator())
+                  : filteredListings.isEmpty
+                  ? Center(
                       child: Text(
                         'No listings in this category yet.',
                         style: TextStyle(
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 14,
                         ),
                       ),
@@ -247,20 +340,27 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       itemCount: filteredListings.length,
                       itemBuilder: (context, index) {
                         final item = filteredListings[index];
-                        return Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: AppColors.textPrimary.withValues(
-                              alpha: 0.03,
-                            ),
-                            borderRadius: BorderRadius.circular(18),
-                            border: Border.all(
-                              color: AppColors.textPrimary.withValues(
-                                alpha: 0.06,
+                        return InkWell(
+                          borderRadius: BorderRadius.circular(18),
+                          onTap: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => MarketDetailScreen(
+                                title: item['title'] as String,
+                                price: item['price'] as String,
+                                seller: item['seller'] as String,
+                                sellerId: item['seller_id'] as String?,
+                                location: 'Location not provided',
+                                imageTag: 'No photo added',
+                                description:
+                                    item['description'] as String? ?? '',
                               ),
                             ),
                           ),
-                          child: Column(
+                          child: GlassCard(
+                            padding: const EdgeInsets.all(12),
+                            borderRadius: 18,
+                            child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               // Placeholder Image Box
@@ -268,15 +368,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 child: Container(
                                   width: double.infinity,
                                   decoration: BoxDecoration(
-                                    color: AppColors.textPrimary.withValues(
-                                      alpha: 0.05,
-                                    ),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.05),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
-                                  child: const Center(
+                                  child: Center(
                                     child: Icon(
                                       Icons.shopping_bag_outlined,
-                                      color: AppColors.textSecondary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       size: 32,
                                     ),
                                   ),
@@ -288,8 +391,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 item['title']!,
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   fontSize: 13,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -298,8 +403,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
                               Text(
                                 item['price']!,
-                                style: const TextStyle(
-                                  color: AppColors.textPrimary,
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w800,
                                 ),
@@ -312,21 +419,26 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                                 children: [
                                   Text(
                                     item['seller']!,
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 10,
                                     ),
                                   ),
                                   Text(
                                     item['time']!,
-                                    style: const TextStyle(
-                                      color: AppColors.textSecondary,
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurfaceVariant,
                                       fontSize: 9,
                                     ),
                                   ),
                                 ],
                               ),
                             ],
+                            ),
                           ),
                         );
                       },

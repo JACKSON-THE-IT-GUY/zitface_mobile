@@ -6,21 +6,21 @@ import 'package:image_picker/image_picker.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String currentName;
-  final String currentHandle;
   final String currentSchool;
   final String currentBio;
   final String currentPhotoPath;
   final String currentPhotoData;
+  final String currentAvatarUrl;
   final bool isCreating;
 
   const EditProfileScreen({
     super.key,
     required this.currentName,
-    required this.currentHandle,
     required this.currentSchool,
     required this.currentBio,
     this.currentPhotoPath = '',
     this.currentPhotoData = '',
+    this.currentAvatarUrl = '',
     this.isCreating = false,
   });
 
@@ -30,28 +30,28 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
-  late TextEditingController _handleController;
   late TextEditingController _schoolController;
   late TextEditingController _bioController;
   final ImagePicker _imagePicker = ImagePicker();
   late String _photoPath;
   late String _photoData;
+  late String _avatarUrl;
+  bool _removeAvatar = false;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.currentName);
-    _handleController = TextEditingController(text: widget.currentHandle);
     _schoolController = TextEditingController(text: widget.currentSchool);
     _bioController = TextEditingController(text: widget.currentBio);
     _photoPath = widget.currentPhotoPath;
     _photoData = widget.currentPhotoData;
+    _avatarUrl = widget.currentAvatarUrl;
   }
 
   @override
   void dispose() {
     _nameController.dispose();
-    _handleController.dispose();
     _schoolController.dispose();
     _bioController.dispose();
     super.dispose();
@@ -68,11 +68,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     Navigator.pop(context, {
       'name': name,
-      'handle': _handleController.text.trim(),
       'school': _schoolController.text.trim(),
       'bio': _bioController.text.trim(),
       'photoPath': _photoPath,
       'photoData': _photoData,
+      'removeAvatar': _removeAvatar.toString(),
     });
   }
 
@@ -90,6 +90,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         setState(() {
           _photoPath = '';
           _photoData = base64Encode(bytes);
+          _removeAvatar = false;
         });
       }
     } on Exception catch (error) {
@@ -109,10 +110,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(
-            color: AppColors.textPrimary.withValues(alpha: 0.1),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.1),
           ),
         ),
         child: SingleChildScrollView(
@@ -126,7 +129,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -139,10 +142,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Text(
+                    child: Text(
                       'Cancel',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 14,
                       ),
                     ),
@@ -150,7 +153,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   Text(
                     widget.isCreating ? 'Create Profile' : 'Edit Profile',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -200,13 +203,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   height: 80,
                                   decoration: BoxDecoration(
                                     shape: BoxShape.circle,
-                                    color: AppColors.textPrimary.withValues(
-                                      alpha: 0.08,
-                                    ),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.08),
                                     border: Border.all(
-                                      color: AppColors.textPrimary.withValues(
-                                        alpha: 0.2,
-                                      ),
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.2),
                                       width: 2,
                                     ),
                                   ),
@@ -235,8 +240,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               _photoData.isEmpty && _photoPath.isEmpty
                                   ? 'Add profile photo'
                                   : 'Change photo',
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                             ),
@@ -244,11 +251,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         ),
                       ),
                     ),
-                    if (_photoData.isNotEmpty || _photoPath.isNotEmpty)
+                    if (_photoData.isNotEmpty ||
+                        _photoPath.isNotEmpty ||
+                        _avatarUrl.isNotEmpty)
                       TextButton(
                         onPressed: () => setState(() {
                           _photoPath = '';
                           _photoData = '';
+                          _avatarUrl = '';
+                          _removeAvatar = true;
                         }),
                         child: const Text('Remove photo'),
                       ),
@@ -262,11 +273,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               _buildInputField(
                 label: 'Display Name',
                 controller: _nameController,
-              ),
-              const SizedBox(height: 14),
-              _buildInputField(
-                label: 'Student Handle',
-                controller: _handleController,
               ),
               const SizedBox(height: 14),
               _buildInputField(
@@ -300,6 +306,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         return _emptyAvatar();
       }
     }
+    if (_avatarUrl.isNotEmpty) {
+      return Image.network(
+        _avatarUrl,
+        fit: BoxFit.cover,
+        errorBuilder: (context, error, stackTrace) => _emptyAvatar(),
+      );
+    }
     return _emptyAvatar();
   }
 
@@ -317,8 +330,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       children: [
         Text(
           label,
-          style: const TextStyle(
-            color: AppColors.textSecondary,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -327,16 +340,23 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
           decoration: BoxDecoration(
-            color: AppColors.textPrimary.withValues(alpha: 0.04),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.04),
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: AppColors.textPrimary.withValues(alpha: 0.08),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.08),
             ),
           ),
           child: TextField(
             controller: controller,
             maxLines: maxLines,
-            style: const TextStyle(color: AppColors.textPrimary, fontSize: 14),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurface,
+              fontSize: 14,
+            ),
             decoration: const InputDecoration(border: InputBorder.none),
           ),
         ),

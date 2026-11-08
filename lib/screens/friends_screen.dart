@@ -1,4 +1,6 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
+import 'package:zitface_mobile/services/zitface_backend.dart';
+import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -29,7 +31,7 @@ class FriendsScreen extends StatefulWidget {
 
 class _FriendsScreenState extends State<FriendsScreen> {
   static const String _requestsKey = 'friend_requests_sent';
-  static const List<_StudentProfile> _students = [
+  static const List<_StudentProfile> _demoStudents = [
     _StudentProfile(
       id: 'phanciah',
       name: 'Phanciah M.',
@@ -81,6 +83,10 @@ class _FriendsScreenState extends State<FriendsScreen> {
   ];
 
   final TextEditingController _searchController = TextEditingController();
+  final bool _cloudMode = ZitfaceBackend.isConfigured;
+  List<_StudentProfile> _students = ZitfaceBackend.isConfigured
+      ? []
+      : [..._demoStudents];
   final Set<String> _sentRequests = {};
   bool _isLoadingRequests = true;
 
@@ -92,6 +98,30 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Future<void> _loadRequests() async {
     try {
+      if (_cloudMode) {
+        final profiles = await ZitfaceBackend.loadDiscoverableProfiles();
+        final requestIds = await ZitfaceBackend.loadSentFriendRequests();
+        if (!mounted) return;
+        setState(() {
+          _students = profiles
+              .map(
+                (profile) => _StudentProfile(
+                  id: profile['id'] as String,
+                  name: profile['display_name'] as String,
+                  school: profile['school'] as String? ?? '',
+                  program: '',
+                  year: 0,
+                  bio: profile['bio'] as String? ?? '',
+                ),
+              )
+              .toList();
+          _sentRequests
+            ..clear()
+            ..addAll(requestIds);
+          _isLoadingRequests = false;
+        });
+        return;
+      }
       final preferences = await SharedPreferences.getInstance();
       final requestIds = preferences.getStringList(_requestsKey) ?? [];
       if (!mounted) return;
@@ -110,6 +140,16 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   Future<void> _sendRequest(_StudentProfile student) async {
     if (_sentRequests.contains(student.id)) return;
+    if (_cloudMode) {
+      try {
+        await ZitfaceBackend.sendFriendRequest(student.id);
+        if (!mounted) return;
+        setState(() => _sentRequests.add(student.id));
+      } on Exception catch (error) {
+        if (mounted) _showStorageError(error);
+      }
+      return;
+    }
     final updatedRequests = {..._sentRequests, student.id};
 
     try {
@@ -171,19 +211,19 @@ class _FriendsScreenState extends State<FriendsScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
+                  Text(
                     'Find students',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                   const SizedBox(height: 5),
-                  const Text(
+                  Text(
                     'Discover fellow students by name, school, program, or year.',
                     style: TextStyle(
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 12,
                     ),
                   ),
@@ -191,18 +231,18 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   TextField(
                     controller: _searchController,
                     onChanged: (_) => setState(() {}),
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 14,
                     ),
                     decoration: InputDecoration(
                       hintText: 'Search students or programs',
-                      hintStyle: const TextStyle(
-                        color: AppColors.textSecondary,
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
-                      prefixIcon: const Icon(
+                      prefixIcon: Icon(
                         Icons.search,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       suffixIcon: query.isEmpty
                           ? null
@@ -212,29 +252,39 @@ class _FriendsScreenState extends State<FriendsScreen> {
                                 _searchController.clear();
                                 setState(() {});
                               },
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.close,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                               ),
                             ),
                       filled: true,
-                      fillColor: AppColors.textPrimary.withValues(alpha: 0.05),
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.05),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: AppColors.textPrimary.withValues(alpha: 0.08),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.08),
                         ),
                       ),
                       enabledBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: AppColors.textPrimary.withValues(alpha: 0.08),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.08),
                         ),
                       ),
                       focusedBorder: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
                         borderSide: BorderSide(
-                          color: AppColors.textPrimary.withValues(alpha: 0.3),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.3),
                         ),
                       ),
                     ),
@@ -242,19 +292,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   const SizedBox(height: 14),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.info_outline,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         size: 15,
                       ),
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                          'Sample student profiles. Friend requests are saved on this device.',
+                            _cloudMode
+                              ? 'Profiles visible to your account. Requests are sent to the recipient.'
+                              : 'Sample student profiles. Friend requests are saved on this device.',
                           style: TextStyle(
-                            color: AppColors.textPrimary.withValues(
-                              alpha: 0.45,
-                            ),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.45),
                             fontSize: 10,
                           ),
                         ),
@@ -266,9 +318,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
             ),
             Expanded(
               child: _isLoadingRequests
-                  ? const Center(
+                  ? Center(
                       child: CircularProgressIndicator(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         strokeWidth: 2,
                       ),
                     )
@@ -278,17 +330,21 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
-                          children: const [
+                          children: [
                             Icon(
                               Icons.person_search_outlined,
-                              color: AppColors.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               size: 34,
                             ),
                             SizedBox(height: 10),
                             Text(
                               'No students found',
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),
@@ -296,7 +352,9 @@ class _FriendsScreenState extends State<FriendsScreen> {
                             Text(
                               'Try a different name, school, or program.',
                               style: TextStyle(
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 12,
                               ),
                               textAlign: TextAlign.center,
@@ -348,25 +406,21 @@ class _StudentCard extends StatelessWidget {
         .map((part) => part[0].toUpperCase())
         .join();
 
-    return Container(
+    return GlassCard(
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.08),
-        ),
-      ),
+      borderRadius: 18,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           CircleAvatar(
             radius: 25,
-            backgroundColor: AppColors.secondarySurface.withValues(alpha: 0.1),
+            backgroundColor: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
             child: Text(
               initials,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -378,52 +432,58 @@ class _StudentCard extends StatelessWidget {
               children: [
                 Text(
                   student.name,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontWeight: FontWeight.bold,
                     fontSize: 14,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  '${student.program} · Year ${student.year}',
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                    student.program.isEmpty
+                      ? student.school
+                      : '${student.program} · Year ${student.year}',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  student.school,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
-                    fontSize: 10,
+                if (student.program.isNotEmpty)
+                  Text(
+                    student.school,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
                   ),
-                ),
                 const SizedBox(height: 8),
                 Text(
                   student.bio,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,
                     height: 1.3,
                   ),
                 ),
                 const SizedBox(height: 10),
-                OutlinedButton.icon(
+                FilledButton.icon(
                   onPressed: requestSent ? null : onAddFriend,
                   icon: Icon(
                     requestSent ? Icons.check : Icons.person_add_alt_1,
                     size: 16,
                   ),
                   label: Text(requestSent ? 'Request sent' : 'Add friend'),
-                  style: OutlinedButton.styleFrom(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.accent,
                     foregroundColor: AppColors.onAccent,
-                    disabledForegroundColor: AppColors.textSecondary,
+                    disabledBackgroundColor: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    disabledForegroundColor: Theme.of(
+                      context,
+                    ).colorScheme.onSurfaceVariant,
                     visualDensity: VisualDensity.compact,
-                    side: BorderSide(
-                      color: AppColors.textPrimary.withValues(alpha: 0.18),
-                    ),
                   ),
                 ),
               ],

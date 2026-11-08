@@ -13,15 +13,15 @@ class CreatePostScreen extends StatefulWidget {
 class _CreatePostScreenState extends State<CreatePostScreen> {
   final TextEditingController _postController = TextEditingController();
   final ImagePicker _imagePicker = ImagePicker();
-  String _selectedAudience = 'CBU Campus';
+  String _selectedAudience = 'Friends';
   Uint8List? _imageBytes;
+  String? _imageContentType;
   bool _isPickingImage = false;
 
   final List<String> _audienceOptions = [
     'Public',
-    'CBU Campus',
-    'SICT (Computer Science)',
-    'Guild Union',
+    'Friends',
+    'Only me',
   ];
 
   @override
@@ -41,9 +41,28 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
         imageQuality: 85,
       );
       if (image == null) return;
+      final extension = image.name.split('.').last.toLowerCase();
+      final contentType = image.mimeType ?? switch (extension) {
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => null,
+      };
+      if (!const {'image/jpeg', 'image/png', 'image/webp'}.contains(
+        contentType,
+      )) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Choose a JPEG, PNG, or WebP image.')),
+        );
+        return;
+      }
       final bytes = await image.readAsBytes();
       if (!mounted) return;
-      setState(() => _imageBytes = bytes);
+      setState(() {
+        _imageBytes = bytes;
+        _imageContentType = contentType;
+      });
     } on PlatformException catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -65,7 +84,13 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     Navigator.pop(context, <String, Object?>{
       'text': text,
       'audience': _selectedAudience,
+      'visibility': switch (_selectedAudience) {
+        'Public' => 'public',
+        'Only me' => 'private',
+        _ => 'friends',
+      },
       'imageBytes': _imageBytes,
+      'imageContentType': _imageContentType,
     });
   }
 
@@ -78,10 +103,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           border: Border.all(
-            color: AppColors.textPrimary.withValues(alpha: 0.1),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.1),
           ),
         ),
         child: SingleChildScrollView(
@@ -95,7 +122,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   width: 38,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     borderRadius: BorderRadius.circular(10),
                   ),
                 ),
@@ -106,18 +133,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 children: [
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
-                    child: const Text(
+                    child: Text(
                       'Cancel',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 14,
                       ),
                     ),
                   ),
-                  const Text(
+                  Text(
                     'Create Post',
                     style: TextStyle(
-                      color: AppColors.textPrimary,
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                     ),
@@ -132,10 +159,12 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor: canPost
                               ? AppColors.accent
-                              : AppColors.textPrimary.withValues(alpha: 0.1),
+                              : Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.1),
                           foregroundColor: canPost
                               ? AppColors.onAccent
-                              : AppColors.textSecondary,
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
                             horizontal: 16,
@@ -168,15 +197,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                     height: 44,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.textPrimary.withValues(alpha: 0.1),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.1),
                       border: Border.all(
-                        color: AppColors.textPrimary.withValues(alpha: 0.2),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.2),
                       ),
                     ),
-                    child: const Center(
+                    child: Center(
                       child: Icon(
                         Icons.person,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                         size: 22,
                       ),
                     ),
@@ -185,10 +218,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Jackson Nsonga',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -202,30 +235,34 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             vertical: 4,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.textPrimary.withValues(
-                              alpha: 0.08,
-                            ),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
-                              color: AppColors.textPrimary.withValues(
-                                alpha: 0.12,
-                              ),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.12),
                             ),
                           ),
                           child: Row(
                             children: [
                               Text(
                                 _selectedAudience,
-                                style: const TextStyle(
-                                  color: AppColors.textSecondary,
+                                style: TextStyle(
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w500,
                                 ),
                               ),
                               const SizedBox(width: 4),
-                              const Icon(
+                              Icon(
                                 Icons.keyboard_arrow_down,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 size: 14,
                               ),
                             ],
@@ -245,14 +282,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 autofocus: true,
                 maxLines: 5,
                 minLines: 3,
-                style: const TextStyle(
-                  color: AppColors.textPrimary,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 15,
                 ),
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   hintText: "What's happening on campus?",
                   hintStyle: TextStyle(
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 15,
                   ),
                   border: InputBorder.none,
@@ -269,23 +306,28 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         width: double.infinity,
                         margin: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
-                          color: AppColors.textPrimary.withValues(alpha: 0.05),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(16),
                           border: Border.all(
-                            color: AppColors.textPrimary.withValues(alpha: 0.1),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.1),
                           ),
                         ),
                         child: Image.memory(
                           _imageBytes!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              const Center(
-                                child: Icon(
-                                  Icons.broken_image_outlined,
-                                  color: AppColors.textSecondary,
-                                  size: 40,
-                                ),
-                              ),
+                          errorBuilder: (context, error, stackTrace) => Center(
+                            child: Icon(
+                              Icons.broken_image_outlined,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              size: 40,
+                            ),
+                          ),
                         ),
                       ),
                     ),
@@ -296,6 +338,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                         onTap: () {
                           setState(() {
                             _imageBytes = null;
+                            _imageContentType = null;
                           });
                         },
                         child: Container(
@@ -304,9 +347,9 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                             color: Colors.black87,
                             shape: BoxShape.circle,
                           ),
-                          child: const Icon(
+                          child: Icon(
                             Icons.close,
-                            color: AppColors.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                             size: 14,
                           ),
                         ),
@@ -316,7 +359,11 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 ),
 
               const SizedBox(height: 10),
-              Divider(color: AppColors.textPrimary.withValues(alpha: 0.08)),
+              Divider(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.08),
+              ),
               const SizedBox(height: 10),
 
               // Attachment Action Buttons Bar
@@ -358,20 +405,28 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: AppColors.textPrimary.withValues(alpha: 0.05),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: AppColors.textPrimary.withValues(alpha: 0.08),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.08),
           ),
         ),
         child: Row(
           children: [
-            Icon(icon, color: AppColors.textSecondary, size: 16),
+            Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 16,
+            ),
             const SizedBox(width: 6),
             Text(
               label,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 12,
               ),
             ),
@@ -384,7 +439,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   void _showAudienceSelector(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
@@ -394,10 +449,10 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
+              Text(
                 'Select Audience',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontWeight: FontWeight.bold,
                   fontSize: 16,
                 ),
@@ -407,15 +462,15 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                 (option) => ListTile(
                   title: Text(
                     option,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 14,
                     ),
                   ),
                   trailing: _selectedAudience == option
-                      ? const Icon(
+                      ? Icon(
                           Icons.check,
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           size: 18,
                         )
                       : null,

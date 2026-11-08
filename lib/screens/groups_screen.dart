@@ -3,6 +3,8 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:zitface_mobile/widget/glass_card.dart';
+import '../services/zitface_backend.dart';
 import 'group_hub_screen.dart';
 
 class CbuGroup {
@@ -70,7 +72,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   List<_AcademicCohort> _filteredCohorts = [];
   bool _isLoadingCohorts = true;
 
-  final List<CbuGroup> _allGroups = [
+  final List<CbuGroup> _allGroups = ZitfaceBackend.isConfigured ? [] : [
     CbuGroup(
       name: 'SICT (Computer Science)',
       members: '1.2k',
@@ -131,11 +133,11 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
   Future<void> _loadCohorts() async {
     try {
-      final preferences = await SharedPreferences.getInstance();
-      final storedCohorts = preferences.getString(_cohortStorageKey);
-      final cohorts = storedCohorts == null
-          ? <_AcademicCohort>[]
-          : _decodeCohorts(storedCohorts);
+      final cohorts = ZitfaceBackend.isConfigured
+          ? (await ZitfaceBackend.loadAcademicCohorts())
+                .map(_cohortFromRemote)
+                .toList()
+          : await _loadLocalCohorts();
 
       if (!mounted) return;
       _cohorts
@@ -148,6 +150,14 @@ class _GroupsScreenState extends State<GroupsScreen> {
       setState(() => _isLoadingCohorts = false);
       _showCohortStorageError('load', error);
     }
+  }
+
+  Future<List<_AcademicCohort>> _loadLocalCohorts() async {
+    final preferences = await SharedPreferences.getInstance();
+    final storedCohorts = preferences.getString(_cohortStorageKey);
+    return storedCohorts == null
+        ? <_AcademicCohort>[]
+        : _decodeCohorts(storedCohorts);
   }
 
   List<_AcademicCohort> _decodeCohorts(String encoded) {
@@ -203,6 +213,48 @@ class _GroupsScreenState extends State<GroupsScreen> {
         }).toList(),
       );
     }).toList();
+  }
+
+  _AcademicCohort _cohortFromRemote(Map<String, dynamic> entry) {
+    final id = entry['id'];
+    final school = entry['school'];
+    final program = entry['program'];
+    final year = entry['academic_year'];
+    final classRep = entry['class_rep_name'];
+    final groups = entry['campus_groups'];
+    if (id is! String ||
+        school is! String ||
+        program is! String ||
+        year is! int ||
+        classRep is! String ||
+        groups is! List<dynamic>) {
+      throw const FormatException('Remote academic cohort is incomplete.');
+    }
+
+    return _AcademicCohort(
+      id: id,
+      school: school,
+      program: program,
+      year: year,
+      classRep: classRep,
+      groups: groups.map((entry) {
+        if (entry is! Map<String, dynamic>) {
+          throw const FormatException('Remote cohort group is invalid.');
+        }
+        final groupId = entry['id'];
+        final name = entry['name'];
+        final type = entry['group_type'];
+        if (groupId is! String || name is! String || type is! String) {
+          throw const FormatException('Remote cohort group is incomplete.');
+        }
+        return _AcademicGroup(
+          id: groupId,
+          name: name,
+          type: type,
+          icon: _iconForGroupType(type),
+        );
+      }).toList(),
+    );
   }
 
   Map<String, Object> _cohortToJson(_AcademicCohort cohort) {
@@ -266,6 +318,23 @@ class _GroupsScreenState extends State<GroupsScreen> {
       builder: (context) => const _CreateCohortDialog(),
     );
     if (details == null || !mounted) return;
+
+    if (ZitfaceBackend.isConfigured) {
+      try {
+        final row = await ZitfaceBackend.createAcademicCohort(
+          school: details.school,
+          program: details.program,
+          academicYear: details.year,
+          classRepName: details.classRep,
+        );
+        if (!mounted) return;
+        _cohorts.insert(0, _cohortFromRemote(row));
+        _filterGroups();
+      } on Exception catch (error) {
+        if (mounted) _showCohortStorageError('create', error);
+      }
+      return;
+    }
 
     final cohortId = DateTime.now().microsecondsSinceEpoch.toString();
     final programLabel = details.program.trim();
@@ -357,6 +426,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
           classGroupName: classGroup.name,
           classRep: cohort.classRep,
           initiallyJoined: false,
+          groupId: group.id,
         ),
       ),
     );
@@ -371,7 +441,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: CustomScrollView(
           physics: const BouncingScrollPhysics(),
@@ -385,11 +455,11 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   children: [
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Campus Groups',
                           style: TextStyle(
-                            color: AppColors.textPrimary,
+                            color: Theme.of(context).colorScheme.onSurface,
                             fontSize: 22,
                             fontWeight: FontWeight.bold,
                           ),
@@ -398,7 +468,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         Text(
                           'Connect with your school & student hubs',
                           style: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 12,
                           ),
                         ),
@@ -409,9 +481,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       onPressed: _isLoadingCohorts
                           ? null
                           : _createAcademicCohort,
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.group_add_outlined,
-                        color: AppColors.textPrimary,
+                        color: Theme.of(context).colorScheme.onSurface,
                       ),
                     ),
                   ],
@@ -429,35 +501,41 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                   decoration: BoxDecoration(
-                    color: AppColors.textPrimary.withValues(alpha: 0.04),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.04),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: AppColors.textPrimary.withValues(alpha: 0.08),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
                   ),
                   child: TextField(
                     controller: _searchController,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 14,
                     ),
                     decoration: InputDecoration(
-                      icon: const Icon(
+                      icon: Icon(
                         Icons.search,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         size: 20,
                       ),
                       hintText: 'Search cohorts, programs, or groups...',
-                      hintStyle: const TextStyle(
-                        color: AppColors.textSecondary,
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                       border: InputBorder.none,
                       suffixIcon: _searchController.text.isNotEmpty
                           ? IconButton(
-                              icon: const Icon(
+                              icon: Icon(
                                 Icons.clear,
-                                color: AppColors.textSecondary,
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 size: 18,
                               ),
                               onPressed: () => _searchController.clear(),
@@ -477,10 +555,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'ACADEMIC COHORTS',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 1,
@@ -493,7 +571,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       icon: const Icon(Icons.add, size: 16),
                       label: const Text('Create'),
                       style: TextButton.styleFrom(
-                        foregroundColor: AppColors.textSecondary,
+                        foregroundColor: Theme.of(
+                          context,
+                        ).colorScheme.onSurfaceVariant,
                         visualDensity: VisualDensity.compact,
                       ),
                     ),
@@ -502,7 +582,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
               ),
             ),
             if (_isLoadingCohorts)
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(20),
                   child: Center(
@@ -511,7 +591,7 @@ class _GroupsScreenState extends State<GroupsScreen> {
                       height: 20,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                     ),
                   ),
@@ -524,24 +604,30 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   child: Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
-                      color: AppColors.textPrimary.withValues(alpha: 0.03),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
-                        color: AppColors.textPrimary.withValues(alpha: 0.07),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.07),
                       ),
                     ),
-                    child: const Row(
+                    child: Row(
                       children: [
                         Icon(
                           Icons.account_tree_outlined,
-                          color: AppColors.textSecondary,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                         SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             'Create a cohort to link its school, program, year, class representative, and related groups.',
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               fontSize: 12,
                               height: 1.35,
                             ),
@@ -569,7 +655,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
                 child: Text(
                   'CAMPUS & INTEREST GROUPS',
                   style: TextStyle(
-                    color: AppColors.textPrimary.withValues(alpha: 0.55),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.55),
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 1,
@@ -580,14 +668,14 @@ class _GroupsScreenState extends State<GroupsScreen> {
 
             // Empty Search State
             if (_filteredGroups.isEmpty && _filteredCohorts.isEmpty)
-              const SliverToBoxAdapter(
+              SliverToBoxAdapter(
                 child: Padding(
                   padding: EdgeInsets.all(32.0),
                   child: Center(
                     child: Text(
                       'No groups found matching your search.',
                       style: TextStyle(
-                        color: AppColors.textSecondary,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,
                       ),
                     ),
@@ -615,16 +703,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                         ),
                       );
                     },
-                    child: Container(
+                    child: GlassCard(
                       margin: const EdgeInsets.only(bottom: 12),
                       padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: AppColors.textPrimary.withValues(alpha: 0.03),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.textPrimary.withValues(alpha: 0.08),
-                        ),
-                      ),
+                      borderRadius: 20,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -633,19 +715,21 @@ class _GroupsScreenState extends State<GroupsScreen> {
                               Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: AppColors.textPrimary.withValues(
-                                    alpha: 0.08,
-                                  ),
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(14),
                                   border: Border.all(
-                                    color: AppColors.textPrimary.withValues(
-                                      alpha: 0.12,
-                                    ),
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurface
+                                        .withValues(alpha: 0.12),
                                   ),
                                 ),
                                 child: Icon(
                                   group.icon,
-                                  color: AppColors.textPrimary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurface,
                                   size: 22,
                                 ),
                               ),
@@ -656,8 +740,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                                   children: [
                                     Text(
                                       group.name,
-                                      style: const TextStyle(
-                                        color: AppColors.textPrimary,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
                                         fontSize: 15,
                                         fontWeight: FontWeight.bold,
                                       ),
@@ -665,8 +751,10 @@ class _GroupsScreenState extends State<GroupsScreen> {
                                     const SizedBox(height: 2),
                                     Text(
                                       '${group.members} members • ${group.category}',
-                                      style: const TextStyle(
-                                        color: AppColors.textSecondary,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
                                         fontSize: 11,
                                       ),
                                     ),
@@ -687,12 +775,16 @@ class _GroupsScreenState extends State<GroupsScreen> {
                                   ),
                                   decoration: BoxDecoration(
                                     color: group.isJoined
-                                        ? AppColors.secondarySurface
+                                        ? Theme.of(
+                                            context,
+                                          ).colorScheme.surfaceContainerHighest
                                         : AppColors.accent,
                                     borderRadius: BorderRadius.circular(12),
                                     border: Border.all(
                                       color: group.isJoined
-                                          ? AppColors.border
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.outline
                                           : Colors.transparent,
                                     ),
                                   ),
@@ -700,7 +792,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
                                     group.isJoined ? 'Joined' : 'Join',
                                     style: TextStyle(
                                       color: group.isJoined
-                                          ? AppColors.textSecondary
+                                          ? Theme.of(
+                                              context,
+                                            ).colorScheme.onSurfaceVariant
                                           : AppColors.onAccent,
                                       fontSize: 11,
                                       fontWeight: FontWeight.bold,
@@ -714,9 +808,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
                           Text(
                             group.description,
                             style: TextStyle(
-                              color: AppColors.textPrimary.withValues(
-                                alpha: 0.6,
-                              ),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.6),
                               fontSize: 12,
                               height: 1.3,
                             ),
@@ -736,17 +830,11 @@ class _GroupsScreenState extends State<GroupsScreen> {
   }
 
   Widget _buildCohortCard(_AcademicCohort cohort) {
-    return Container(
+    return GlassCard(
       key: ValueKey(cohort.id),
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.09),
-        ),
-      ),
+      borderRadius: 18,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -755,12 +843,14 @@ class _GroupsScreenState extends State<GroupsScreen> {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.08),
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(13),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.school_outlined,
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                   size: 21,
                 ),
               ),
@@ -771,8 +861,8 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   children: [
                     Text(
                       cohort.program,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                       ),
@@ -780,16 +870,16 @@ class _GroupsScreenState extends State<GroupsScreen> {
                     const SizedBox(height: 3),
                     Text(
                       '${cohort.school} · Year ${cohort.year}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 11,
                       ),
                     ),
                     const SizedBox(height: 3),
                     Text(
                       'Class representative: ${cohort.classRep}',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 11,
                       ),
                     ),
@@ -803,7 +893,9 @@ class _GroupsScreenState extends State<GroupsScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 6),
               child: Material(
-                color: AppColors.textPrimary.withValues(alpha: 0.035),
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.035),
                 borderRadius: BorderRadius.circular(12),
                 child: ListTile(
                   key: ValueKey(group.id),
@@ -813,27 +905,27 @@ class _GroupsScreenState extends State<GroupsScreen> {
                   ),
                   leading: Icon(
                     group.icon,
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     size: 20,
                   ),
                   title: Text(
                     group.name,
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: Text(
                     group.type,
-                    style: const TextStyle(
-                      color: AppColors.textSecondary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       fontSize: 10,
                     ),
                   ),
-                  trailing: const Icon(
+                  trailing: Icon(
                     Icons.chevron_right,
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     size: 19,
                   ),
                   onTap: () => _openAcademicGroup(cohort, group),
@@ -892,10 +984,10 @@ class _CreateCohortDialogState extends State<_CreateCohortDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppColors.surface,
-      title: const Text(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      title: Text(
         'Create academic cohort',
-        style: TextStyle(color: AppColors.textPrimary),
+        style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       ),
       content: Form(
         key: _formKey,
@@ -909,8 +1001,10 @@ class _CreateCohortDialogState extends State<_CreateCohortDialog> {
               const SizedBox(height: 12),
               DropdownButtonFormField<int>(
                 initialValue: _year,
-                dropdownColor: AppColors.surface,
-                style: const TextStyle(color: AppColors.textPrimary),
+                dropdownColor: Theme.of(context).colorScheme.surface,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
                 decoration: _fieldDecoration('Academic year'),
                 items: List.generate(
                   7,
@@ -926,9 +1020,12 @@ class _CreateCohortDialogState extends State<_CreateCohortDialog> {
               const SizedBox(height: 12),
               _buildField(_classRepController, 'Class representative name'),
               const SizedBox(height: 10),
-              const Text(
+              Text(
                 'This creates linked program, class, study, lecture, and tutorial groups for this cohort.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 12),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  fontSize: 12,
+                ),
               ),
             ],
           ),
@@ -961,7 +1058,7 @@ class _CreateCohortDialogState extends State<_CreateCohortDialog> {
   Widget _buildField(TextEditingController controller, String label) {
     return TextFormField(
       controller: controller,
-      style: const TextStyle(color: AppColors.textPrimary),
+      style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
       decoration: _fieldDecoration(label),
       validator: _requiredField,
     );
@@ -970,16 +1067,20 @@ class _CreateCohortDialogState extends State<_CreateCohortDialog> {
   InputDecoration _fieldDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: const TextStyle(color: AppColors.textSecondary),
+      labelStyle: TextStyle(
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+      ),
       enabledBorder: OutlineInputBorder(
         borderSide: BorderSide(
-          color: AppColors.textPrimary.withValues(alpha: 0.14),
+          color: Theme.of(
+            context,
+          ).colorScheme.onSurface.withValues(alpha: 0.14),
         ),
         borderRadius: BorderRadius.circular(12),
       ),
       focusedBorder: OutlineInputBorder(
         borderSide: BorderSide(
-          color: AppColors.textPrimary.withValues(alpha: 0.6),
+          color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
         ),
         borderRadius: BorderRadius.circular(12),
       ),

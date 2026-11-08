@@ -1,4 +1,5 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
+import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
 
 class GroupDetailScreen extends StatefulWidget {
@@ -48,31 +49,31 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             size: 18,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           widget.groupName,
-          style: const TextStyle(
-            color: AppColors.textPrimary,
+          style: TextStyle(
+            color: Theme.of(context).colorScheme.onSurface,
             fontSize: 16,
             fontWeight: FontWeight.bold,
           ),
         ),
         actions: [
           IconButton(
-            icon: const Icon(
+            icon: Icon(
               Icons.more_vert,
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               size: 20,
             ),
             onPressed: () {},
@@ -86,26 +87,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Group Hero Header Banner
-              Container(
+              GlassCard(
                 padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: AppColors.textPrimary.withValues(alpha: 0.03),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(
-                    color: AppColors.textPrimary.withValues(alpha: 0.08),
-                  ),
-                ),
+                borderRadius: 20,
                 child: Column(
                   children: [
                     CircleAvatar(
                       radius: 32,
-                      backgroundColor: AppColors.secondarySurface.withValues(
-                        alpha: 0.08,
-                      ),
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.08),
                       child: Text(
                         widget.groupName.isNotEmpty ? widget.groupName[0] : 'G',
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 24,
                           fontWeight: FontWeight.bold,
                         ),
@@ -115,8 +111,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     Text(
                       widget.groupName,
                       textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
@@ -124,8 +120,8 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     const SizedBox(height: 4),
                     Text(
                       '${widget.category} • ${widget.memberCount} Members',
-                      style: const TextStyle(
-                        color: AppColors.textSecondary,
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 12,
                       ),
                     ),
@@ -141,14 +137,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 10),
                         decoration: BoxDecoration(
                           color: _joined
-                              ? AppColors.textPrimary.withValues(alpha: 0.08)
-                              : AppColors.textPrimary,
+                              ? Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.08)
+                              : Theme.of(context).colorScheme.onSurface,
                           borderRadius: BorderRadius.circular(20),
                           border: _joined
                               ? Border.all(
-                                  color: AppColors.textPrimary.withValues(
-                                    alpha: 0.1,
-                                  ),
+                                  color: Theme.of(context).colorScheme.onSurface
+                                      .withValues(alpha: 0.1),
                                 )
                               : null,
                         ),
@@ -157,7 +154,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             _joined ? 'Joined' : 'Join Group',
                             style: TextStyle(
                               color: _joined
-                                  ? AppColors.textPrimary
+                                  ? Theme.of(context).colorScheme.onSurface
                                   : AppColors.onAccent,
                               fontWeight: FontWeight.bold,
                               fontSize: 13,
@@ -173,10 +170,10 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               const SizedBox(height: 20),
 
               // Group Feed Header
-              const Text(
+              Text(
                 'Group Discussions',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
                 ),
@@ -194,10 +191,14 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     margin: const EdgeInsets.only(bottom: 12),
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: AppColors.textPrimary.withValues(alpha: 0.03),
+                      color: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(18),
                       border: Border.all(
-                        color: AppColors.textPrimary.withValues(alpha: 0.06),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.06),
                       ),
                     ),
                     child: Column(
@@ -208,16 +209,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           children: [
                             Text(
                               post['author']!,
-                              style: const TextStyle(
-                                color: AppColors.textPrimary,
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
                               ),
                             ),
                             Text(
                               post['time']!,
-                              style: const TextStyle(
-                                color: AppColors.textSecondary,
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
                                 fontSize: 11,
                               ),
                             ),
@@ -227,7 +230,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         Text(
                           post['content']!,
                           style: TextStyle(
-                            color: AppColors.textPrimary.withValues(alpha: 0.8),
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurface.withValues(alpha: 0.8),
                             fontSize: 13,
                             height: 1.4,
                           ),
@@ -237,18 +242,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           children: [
                             Icon(
                               Icons.thumb_up_alt_outlined,
-                              color: AppColors.textPrimary.withValues(
-                                alpha: 0.5,
-                              ),
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.5),
                               size: 14,
                             ),
                             const SizedBox(width: 4),
                             Text(
                               post['likes']!,
                               style: TextStyle(
-                                color: AppColors.textPrimary.withValues(
-                                  alpha: 0.5,
-                                ),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.5),
                                 fontSize: 11,
                               ),
                             ),

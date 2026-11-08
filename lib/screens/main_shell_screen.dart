@@ -40,9 +40,105 @@ class _MainShellScreenState extends State<MainShellScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return GlassScaffold(
-      bottomNavigationBar: _buildFloatingNavBar(),
-      child: IndexedStack(index: _currentIndex, children: _screens),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isDesktop = constraints.maxWidth >= 1200;
+        final isTablet = constraints.maxWidth >= 900;
+        final bottomNavigationBar = isDesktop
+            ? null
+            : isTablet
+            ? Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 820),
+                  child: _buildFloatingNavBar(),
+                ),
+              )
+            : _buildFloatingNavBar();
+        final appBody = isDesktop
+            ? Row(
+                children: [
+                  _buildWideNavigationRail(),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1440),
+                        child: SizedBox.expand(
+                          child: IndexedStack(
+                            index: _currentIndex,
+                            children: _screens,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              )
+            : IndexedStack(index: _currentIndex, children: _screens);
+
+        return GlassScaffold(
+          bottomNavigationBar: bottomNavigationBar,
+          child: appBody,
+        );
+      },
+    );
+  }
+
+  Widget _buildWideNavigationRail() {
+    return NavigationRail(
+      selectedIndex: _currentIndex,
+      onDestinationSelected: (index) => setState(() => _currentIndex = index),
+      extended: true,
+      minExtendedWidth: 232,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      indicatorColor: AppColors.accent.withValues(alpha: 0.16),
+      leading: Padding(
+        padding: const EdgeInsets.only(top: 20, bottom: 28, left: 12),
+        child: Text(
+          'ZITFACE',
+          style: TextStyle(
+            color: AppColors.accent,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ),
+      destinations: const [
+        NavigationRailDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
+          label: Text('Home'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.menu_book_outlined),
+          selectedIcon: Icon(Icons.menu_book),
+          label: Text('Materials'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.person_search_outlined),
+          selectedIcon: Icon(Icons.person_search),
+          label: Text('Friends'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.group_outlined),
+          selectedIcon: Icon(Icons.group),
+          label: Text('Groups'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.storefront_outlined),
+          selectedIcon: Icon(Icons.storefront),
+          label: Text('Market'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.chat_bubble_outline),
+          selectedIcon: Icon(Icons.chat_bubble),
+          label: Text('Chats'),
+        ),
+        NavigationRailDestination(
+          icon: Icon(Icons.person_outline),
+          selectedIcon: Icon(Icons.person),
+          label: Text('Profile'),
+        ),
+      ],
     );
   }
 
@@ -124,8 +220,8 @@ class _MainShellScreenState extends State<MainShellScreen> {
                             ? navItems[index]['activeIcon']
                             : navItems[index]['icon'],
                         color: isActive
-                            ? AppColors.textPrimary
-                            : AppColors.textSecondary,
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
                         size: 19,
                       ),
                       const SizedBox(height: 2),
@@ -135,8 +231,8 @@ class _MainShellScreenState extends State<MainShellScreen> {
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: isActive
-                              ? AppColors.textPrimary
-                              : AppColors.textSecondary,
+                              ? Theme.of(context).colorScheme.onSurface
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                           fontSize: 8,
                           fontWeight: isActive
                               ? FontWeight.w600

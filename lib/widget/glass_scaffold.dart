@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import '../theme/app_theme.dart';
 
 class GlassScaffold extends StatelessWidget {
   final Widget child;
@@ -13,9 +12,10 @@ class GlassScaffold extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final backgroundColor = Theme.of(context).scaffoldBackgroundColor;
     return Scaffold(
-      backgroundColor: AppColors.pageBackground,
-      body: Container(color: AppColors.pageBackground, child: child),
+      backgroundColor: backgroundColor,
+      body: Container(color: backgroundColor, child: child),
       bottomNavigationBar: bottomNavigationBar,
     );
   }

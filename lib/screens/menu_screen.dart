@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:zitface_mobile/widget/glass_card.dart';
 import '../theme/app_theme.dart';
+import '../services/zitface_backend.dart';
 
 class MenuScreen extends StatelessWidget {
   const MenuScreen({super.key});
@@ -18,10 +20,10 @@ class MenuScreen extends StatelessWidget {
               const SizedBox(height: 14),
 
               // Title Header
-              const Text(
+              Text(
                 'Menu',
                 style: TextStyle(
-                  color: AppColors.textPrimary,
+                  color: Theme.of(context).colorScheme.onSurface,
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
                 ),
@@ -30,15 +32,9 @@ class MenuScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               // Profile Card Header Shortcut
-              Container(
+              GlassCard(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.primaryColor.withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: AppColors.textPrimary.withValues(alpha: 0.08),
-                  ),
-                ),
+                borderRadius: 16,
                 child: Row(
                   children: [
                     Container(
@@ -46,24 +42,31 @@ class MenuScreen extends StatelessWidget {
                       height: 44,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: AppColors.textPrimary.withValues(alpha: 0.1),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.1),
                         border: Border.all(
-                          color: AppColors.textPrimary.withValues(alpha: 0.2),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.2),
                         ),
                       ),
-                      child: const Center(
-                        child: Icon(Icons.person, color: AppColors.textPrimary),
+                      child: Center(
+                        child: Icon(
+                          Icons.person,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
                     const SizedBox(width: 12),
-                    const Expanded(
+                    Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
                             'Jackson Nsonga',
                             style: TextStyle(
-                              color: AppColors.textPrimary,
+                              color: Theme.of(context).colorScheme.onSurface,
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
                             ),
@@ -71,16 +74,18 @@ class MenuScreen extends StatelessWidget {
                           Text(
                             'See your profile',
                             style: TextStyle(
-                              color: AppColors.textSecondary,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
                               fontSize: 12,
                             ),
                           ),
                         ],
                       ),
                     ),
-                    const Icon(
+                    Icon(
                       Icons.arrow_forward_ios,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                       size: 14,
                     ),
                   ],
@@ -90,10 +95,10 @@ class MenuScreen extends StatelessWidget {
               const SizedBox(height: 20),
 
               // All Shortcuts Grid
-              const Text(
+              Text(
                 'All Shortcuts',
                 style: TextStyle(
-                  color: AppColors.textSecondary,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -109,21 +114,25 @@ class MenuScreen extends StatelessWidget {
                 childAspectRatio: 2.2,
                 children: [
                   _buildShortcutCard(
+                    context,
                     Icons.groups_outlined,
                     'Groups',
                     'CBU Hubs',
                   ),
                   _buildShortcutCard(
+                    context,
                     Icons.storefront_outlined,
                     'Marketplace',
                     'Campus Buy/Sell',
                   ),
                   _buildShortcutCard(
+                    context,
                     Icons.bookmark_outline,
                     'Saved',
                     'Posts & Notes',
                   ),
                   _buildShortcutCard(
+                    context,
                     Icons.event_outlined,
                     'Campus Events',
                     'ICTA & Guild',
@@ -139,12 +148,35 @@ class MenuScreen extends StatelessWidget {
                 icon: Icons.settings_outlined,
                 title: 'Settings & Privacy',
                 children: [
+                  ValueListenableBuilder<ThemeMode>(
+                    valueListenable: themeNotifier,
+                    builder: (context, themeMode, _) => Column(
+                      children: [
+                        _buildAppearanceOption(
+                          icon: Icons.light_mode_outlined,
+                          title: 'Light mode',
+                          selected: themeMode == ThemeMode.light,
+                          context: context,
+                          onTap: () => themeNotifier.value = ThemeMode.light,
+                        ),
+                        _buildAppearanceOption(
+                          icon: Icons.dark_mode_outlined,
+                          title: 'Dark mode',
+                          selected: themeMode == ThemeMode.dark,
+                          context: context,
+                          onTap: () => themeNotifier.value = ThemeMode.dark,
+                        ),
+                      ],
+                    ),
+                  ),
                   _buildMenuItem(
+                    context,
                     Icons.lock_outline,
                     'Privacy Shortcuts',
                     onTap: () {},
                   ),
                   _buildMenuItem(
+                    context,
                     Icons.language_outlined,
                     'Language',
                     subtitle: 'English (US)',
@@ -162,16 +194,19 @@ class MenuScreen extends StatelessWidget {
                 title: 'Help & Support',
                 children: [
                   _buildMenuItem(
+                    context,
                     Icons.help_center_outlined,
                     'Help Center',
                     onTap: () {},
                   ),
                   _buildMenuItem(
+                    context,
                     Icons.report_problem_outlined,
                     'Report a Problem',
                     onTap: () {},
                   ),
                   _buildMenuItem(
+                    context,
                     Icons.article_outlined,
                     'Terms & Policies',
                     onTap: () {},
@@ -214,19 +249,22 @@ class MenuScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildShortcutCard(IconData icon, String title, String subtitle) {
-    return Container(
+  Widget _buildShortcutCard(
+    BuildContext context,
+    IconData icon,
+    String title,
+    String subtitle,
+  ) {
+    return GlassCard(
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.04),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.07),
-        ),
-      ),
+      borderRadius: 14,
       child: Row(
         children: [
-          Icon(icon, color: AppColors.textSecondary, size: 22),
+          Icon(
+            icon,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            size: 22,
+          ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
@@ -235,16 +273,16 @@ class MenuScreen extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 13,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
                 Text(
                   subtitle,
-                  style: const TextStyle(
-                    color: AppColors.textSecondary,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 10,
                   ),
                 ),
@@ -262,35 +300,35 @@ class MenuScreen extends StatelessWidget {
     required String title,
     required List<Widget> children,
   }) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.textPrimary.withValues(alpha: 0.03),
+    return GlassCard(
+      padding: EdgeInsets.zero,
+      borderRadius: 16,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppColors.textPrimary.withValues(alpha: 0.06),
-        ),
-      ),
-      child: Theme(
-        data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-        child: ExpansionTile(
-          iconColor: AppColors.textSecondary,
-          collapsedIconColor: AppColors.textSecondary,
-          leading: Icon(icon, color: AppColors.textPrimary),
-          title: Text(
-            title,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+        child: Theme(
+          data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+          child: ExpansionTile(
+            iconColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            collapsedIconColor: Theme.of(context).colorScheme.onSurfaceVariant,
+            leading: Icon(icon, color: Theme.of(context).colorScheme.onSurface),
+            title: Text(
+              title,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurface,
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
             ),
+            children: children,
           ),
-          children: children,
         ),
       ),
     );
   }
 
   Widget _buildMenuItem(
+    BuildContext context,
     IconData icon,
     String title, {
     String? subtitle,
@@ -298,23 +336,60 @@ class MenuScreen extends StatelessWidget {
   }) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: AppColors.textSecondary, size: 20),
+      leading: Icon(
+        icon,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        size: 20,
+      ),
       title: Text(
         title,
-        style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 13,
+        ),
       ),
       trailing: subtitle != null
           ? Text(
               subtitle,
-              style: const TextStyle(
-                color: AppColors.textSecondary,
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 fontSize: 11,
               ),
             )
-          : const Icon(
+          : Icon(
               Icons.chevron_right,
-              color: AppColors.textSecondary,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
               size: 16,
+            ),
+    );
+  }
+
+  Widget _buildAppearanceOption({
+    required BuildContext context,
+    required IconData icon,
+    required String title,
+    required bool selected,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      onTap: onTap,
+      leading: Icon(
+        icon,
+        color: Theme.of(context).colorScheme.onSurfaceVariant,
+        size: 20,
+      ),
+      title: Text(
+        title,
+        style: TextStyle(
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          fontSize: 13,
+        ),
+      ),
+      trailing: selected
+          ? const Icon(Icons.check_circle, color: AppColors.accent, size: 20)
+          : Icon(
+              Icons.circle_outlined,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
             ),
     );
   }
@@ -324,30 +399,37 @@ class MenuScreen extends StatelessWidget {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          backgroundColor: AppColors.surface,
+          backgroundColor: Theme.of(context).colorScheme.surface,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
             side: BorderSide(
-              color: AppColors.textPrimary.withValues(alpha: 0.1),
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.1),
             ),
           ),
-          title: const Text(
+          title: Text(
             'Log Out',
             style: TextStyle(
-              color: AppColors.textPrimary,
+              color: Theme.of(context).colorScheme.onSurface,
               fontWeight: FontWeight.bold,
             ),
           ),
-          content: const Text(
+          content: Text(
             'Are you sure you want to log out of ZITFACE?',
-            style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 13,
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text(
+              child: Text(
                 'Cancel',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
               ),
             ),
             ElevatedButton(
@@ -357,13 +439,30 @@ class MenuScreen extends StatelessWidget {
                   borderRadius: BorderRadius.circular(10),
                 ),
               ),
-              onPressed: () {
+              onPressed: () async {
                 Navigator.pop(dialogContext);
-                // Perform auth logout action here
+                if (!ZitfaceBackend.isConfigured) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Sign-out is unavailable in local demo mode.'),
+                    ),
+                  );
+                  return;
+                }
+                try {
+                  await ZitfaceBackend.client.auth.signOut();
+                } on Exception catch (error) {
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Could not log out: $error')),
+                  );
+                }
               },
-              child: const Text(
+              child: Text(
                 'Log Out',
-                style: TextStyle(color: AppColors.textPrimary),
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                ),
               ),
             ),
           ],

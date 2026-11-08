@@ -1,13 +1,17 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import '../theme/app_theme.dart';
+import '../services/zitface_backend.dart';
 import '../widget/glass_card.dart';
 import 'menu_screen.dart';
 import 'create_post_screen.dart';
 import 'profile_screen.dart';
+
+const _homeActionColor = Color(0xFFC62828);
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onProfileTap;
@@ -19,27 +23,113 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const List<_StoryTrack> _storyMusicLibrary = [
+    _StoryTrack(title: 'Paper Skies', artist: 'Mira Sol'),
+    _StoryTrack(title: 'Soft Focus', artist: 'Jules Avery'),
+    _StoryTrack(title: 'Late Train', artist: 'Noah Vale'),
+    _StoryTrack(title: 'Sunny Side', artist: 'Lena Hart'),
+    _StoryTrack(title: 'Neon Streets', artist: 'Kai Rivers'),
+  ];
+
   final ImagePicker _imagePicker = ImagePicker();
   Uint8List? _storyImageBytes;
+  String? _storyContentType;
+  _StoryTrack? _storyTrack;
+  final List<Map<String, dynamic>> _cloudStories = [];
+  bool _isLoadingCloudStories = ZitfaceBackend.isConfigured;
+  bool _isPublishingStory = false;
+  String? _cloudStoryError;
   final List<_HomePost> _createdPosts = [];
   final List<String> _sampleComments = [];
   String? _sampleReaction;
   int _sampleCommentCount = 300;
+  bool _isLoadingCloudFeed = ZitfaceBackend.isConfigured;
+  String? _cloudFeedError;
   final Map<String, int> _sampleReactionCounts = {
-    '❤️': 15360,
-    '👍': 0,
-    '😂': 0,
-    '😮': 0,
-    '😢': 0,
+    'Love': 15360,
+    'Like': 0,
+    'Laugh': 0,
+    'Wow': 0,
+    'Sad': 0,
   };
 
-  static const List<String> _reactionOptions = ['❤️', '👍', '😂', '😮', '😢'];
+  static const List<String> _reactionOptions = [
+    'Love',
+    'Like',
+    'Laugh',
+    'Wow',
+    'Sad',
+    'Angry',
+  ];
+  static const Map<String, IconData> _reactionIcons = {
+    'Love': Icons.favorite,
+    'Like': Icons.thumb_up,
+    'Laugh': Icons.sentiment_satisfied_alt,
+    'Wow': Icons.sentiment_very_satisfied,
+    'Sad': Icons.sentiment_dissatisfied,
+    'Angry': Icons.sentiment_very_dissatisfied,
+  };
+
+  @override
+  void initState() {
+    super.initState();
+    if (ZitfaceBackend.isConfigured) {
+      unawaited(_loadCloudFeed());
+      unawaited(_loadCloudStories());
+    }
+  }
+
+  Future<void> _loadCloudStories() async {
+    setState(() {
+      _isLoadingCloudStories = true;
+      _cloudStoryError = null;
+    });
+    try {
+      final rows = await ZitfaceBackend.loadStories();
+      if (!mounted) return;
+      setState(() {
+        _cloudStories
+          ..clear()
+          ..addAll(rows);
+        _isLoadingCloudStories = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _cloudStoryError = 'Could not load stories: $error';
+        _isLoadingCloudStories = false;
+      });
+    }
+  }
+
+  Future<void> _loadCloudFeed() async {
+    setState(() {
+      _isLoadingCloudFeed = true;
+      _cloudFeedError = null;
+    });
+    try {
+      final rows = await ZitfaceBackend.loadFeed();
+      if (!mounted) return;
+      setState(() {
+        _createdPosts
+          ..clear()
+          ..addAll(rows.map(_HomePost.fromCloudRow));
+        _isLoadingCloudFeed = false;
+      });
+    } on Exception catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _cloudFeedError = 'Could not load posts: $error';
+        _isLoadingCloudFeed = false;
+      });
+    }
+  }
 
   void _openMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -58,6 +148,24 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => const CreatePostScreen(),
     );
     if (post == null || !mounted) return;
+    if (ZitfaceBackend.isConfigured) {
+      try {
+        await ZitfaceBackend.createPost(
+          body: post['text']! as String,
+          visibility: post['visibility']! as String,
+          imageBytes: post['imageBytes'] as Uint8List?,
+          imageContentType:
+              post['imageContentType'] as String? ?? 'image/jpeg',
+        );
+        await _loadCloudFeed();
+      } on Exception catch (error) {
+        if (!context.mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not publish post: $error')),
+        );
+      }
+      return;
+    }
     setState(() {
       _createdPosts.insert(
         0,
@@ -91,7 +199,7 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  void _setPostReaction(_HomePost post, String? reaction) {
+  void _applyPostReaction(_HomePost post, String? reaction) {
     setState(() {
       if (reaction == null || post.myReaction == reaction) {
         final previousReaction = post.myReaction;
@@ -111,13 +219,32 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
+  Future<void> _setPostReaction(_HomePost post, String? reaction) async {
+    final previousReaction = post.myReaction;
+    _applyPostReaction(post, reaction);
+    if (post.id == null) return;
+
+    try {
+      await ZitfaceBackend.setPostReaction(
+        postId: post.id!,
+        reaction: post.myReaction,
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      _applyPostReaction(post, previousReaction);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save reaction: $error')),
+      );
+    }
+  }
+
   Future<void> _chooseReaction({
     required String? selected,
     required ValueChanged<String> onSelected,
   }) async {
     final reaction = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: AppColors.surface,
+      backgroundColor: Theme.of(context).colorScheme.surface,
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
@@ -126,9 +253,13 @@ class _HomeScreenState extends State<HomeScreen> {
             children: [
               for (final reaction in _reactionOptions)
                 IconButton(
-                  tooltip: _reactionNames[reaction],
+                  tooltip: reaction,
                   onPressed: () => Navigator.pop(context, reaction),
-                  icon: Text(reaction, style: const TextStyle(fontSize: 28)),
+                  icon: Icon(
+                    _reactionIcons[reaction],
+                    color: _homeActionColor,
+                    size: 28,
+                  ),
                 ),
             ],
           ),
@@ -141,6 +272,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _openComments(
     List<String> comments, {
     bool isSamplePost = false,
+    _HomePost? post,
   }) async {
     final comment = await showModalBottomSheet<String>(
       context: context,
@@ -149,6 +281,18 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context) => _CommentsSheet(comments: comments),
     );
     if (comment == null || !mounted) return;
+    if (post?.id != null) {
+      try {
+        await ZitfaceBackend.addPostComment(postId: post!.id!, body: comment);
+        await _loadCloudFeed();
+      } on Exception catch (error) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not add comment: $error')),
+        );
+      }
+      return;
+    }
     setState(() {
       comments.add(comment);
       if (isSamplePost) _sampleCommentCount++;
@@ -166,28 +310,210 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  static const Map<String, String> _reactionNames = {
-    '❤️': 'Love',
-    '👍': 'Like',
-    '😂': 'Laugh',
-    '😮': 'Wow',
-    '😢': 'Sad',
-  };
-
   Future<void> _pickStoryImage() async {
     try {
-      final image = await _imagePicker.pickImage(source: ImageSource.gallery);
+      final image = await _imagePicker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1600,
+        maxHeight: 1600,
+        imageQuality: 85,
+      );
       if (image == null) return;
 
+      final extension = image.name.split('.').last.toLowerCase();
+      final contentType = image.mimeType ?? switch (extension) {
+        'jpg' || 'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        _ => null,
+      };
+      if (!const {'image/jpeg', 'image/png', 'image/webp'}.contains(
+        contentType,
+      )) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Choose a JPEG, PNG, or WebP story image.')),
+        );
+        return;
+      }
       final imageBytes = await image.readAsBytes();
       if (!mounted) return;
-      setState(() => _storyImageBytes = imageBytes);
+      setState(() {
+        _storyImageBytes = imageBytes;
+        _storyContentType = contentType;
+      });
     } on Exception catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not select a story image: $error')),
       );
     }
+  }
+
+  Future<void> _publishStory() async {
+    final imageBytes = _storyImageBytes;
+    final contentType = _storyContentType;
+    if (imageBytes == null || contentType == null || _isPublishingStory) return;
+
+    setState(() => _isPublishingStory = true);
+    try {
+      await ZitfaceBackend.createStory(
+        imageBytes: imageBytes,
+        contentType: contentType,
+      );
+      if (!mounted) return;
+      setState(() {
+        _storyImageBytes = null;
+        _storyContentType = null;
+      });
+      await _loadCloudStories();
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not publish story: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _isPublishingStory = false);
+    }
+  }
+
+  Future<void> _openCloudStory(Map<String, dynamic> story) async {
+    try {
+      await ZitfaceBackend.recordStoryView(
+        storyId: story['id'] as String,
+        authorId: story['author_id'] as String,
+      );
+    } on Exception catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not record story view: $error')),
+      );
+      return;
+    }
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (dialogContext) => Dialog(
+        insetPadding: const EdgeInsets.all(16),
+        clipBehavior: Clip.antiAlias,
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(dialogContext).size.height * 0.85,
+            maxWidth: 440,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: MediaQuery.of(dialogContext).size.height * 0.68,
+                width: double.infinity,
+                child: Image.network(
+                  story['image_url'] as String,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(Icons.broken_image_outlined, size: 40),
+                  ),
+                ),
+              ),
+              ListTile(
+                title: Text(story['author_name'] as String),
+                subtitle: Text((story['caption'] as String?) ?? ''),
+                trailing: IconButton(
+                  tooltip: 'Close story',
+                  onPressed: () => Navigator.pop(dialogContext),
+                  icon: const Icon(Icons.close),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _chooseStoryMusic() async {
+    final selectedTrack = await showModalBottomSheet<_StoryTrack>(
+      context: context,
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Add music to your story',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final track in _storyMusicLibrary)
+                      ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: Theme.of(
+                            context,
+                          ).colorScheme.surfaceContainerHighest,
+                          child: Icon(
+                            Icons.music_note,
+                            color: AppColors.accent,
+                          ),
+                        ),
+                        title: Text(
+                          track.title,
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        subtitle: Text(
+                          track.artist,
+                          style: TextStyle(
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        onTap: () => Navigator.pop(context, track),
+                      ),
+                    ListTile(
+                      leading: Icon(
+                        Icons.music_off,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                      title: Text(
+                        'Continue without music',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                      onTap: () => Navigator.pop(
+                        context,
+                        const _StoryTrack(title: '', artist: ''),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    if (selectedTrack == null || !mounted) return;
+    setState(
+      () => _storyTrack = selectedTrack.title.isEmpty ? null : selectedTrack,
+    );
   }
 
   @override
@@ -197,13 +523,13 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (context, currentMode, _) {
         final isDark = currentMode == ThemeMode.dark;
         final surfaceColor = isDark
-            ? AppColors.textPrimary.withValues(alpha: 0.08)
+            ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08)
             : Colors.black.withValues(alpha: 0.05);
-        final mutedText = isDark ? AppColors.textSecondary : Colors.black54;
-        final bodyText = isDark ? AppColors.textPrimary : Colors.black87;
+        final mutedText = Theme.of(context).colorScheme.onSurfaceVariant;
+        final bodyText = Theme.of(context).colorScheme.onSurface;
         final softSurface = isDark
             ? Colors.black.withValues(alpha: 0.3)
-            : AppColors.secondarySurface;
+            : Theme.of(context).colorScheme.surfaceContainerHighest;
 
         return Scaffold(
           backgroundColor: Colors.transparent,
@@ -218,10 +544,10 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'ZITFACE',
                         style: TextStyle(
-                          color: AppColors.textPrimary,
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 24,
                           fontWeight: FontWeight.w900,
                           letterSpacing: 1.0,
@@ -268,11 +594,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           children: [
                             CircleAvatar(
                               radius: 18,
-                              backgroundColor: AppColors.secondarySurface
+                              backgroundColor: Theme.of(context)
+                                  .colorScheme
+                                  .surfaceContainerHighest
                                   .withValues(alpha: 0.1),
-                              child: const Icon(
+                              child: Icon(
                                 Icons.person,
-                                color: AppColors.textPrimary,
+                                color: Theme.of(context).colorScheme.onSurface,
                                 size: 18,
                               ),
                             ),
@@ -315,6 +643,39 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       const SizedBox(height: 16),
+                      if (ZitfaceBackend.isConfigured && _isLoadingCloudFeed)
+                        const LinearProgressIndicator(),
+                      if (ZitfaceBackend.isConfigured &&
+                          _cloudFeedError != null)
+                        ListTile(
+                          title: Text(_cloudFeedError!),
+                          trailing: IconButton(
+                            tooltip: 'Retry loading posts',
+                            onPressed: _loadCloudFeed,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                        ),
+                      if (ZitfaceBackend.isConfigured &&
+                          !_isLoadingCloudFeed &&
+                          _cloudFeedError == null &&
+                          _createdPosts.isEmpty)
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 24),
+                          child: Center(child: Text('No posts yet.')),
+                        ),
+                      if (ZitfaceBackend.isConfigured &&
+                          _isLoadingCloudStories)
+                        const LinearProgressIndicator(),
+                      if (ZitfaceBackend.isConfigured &&
+                          _cloudStoryError != null)
+                        ListTile(
+                          title: Text(_cloudStoryError!),
+                          trailing: IconButton(
+                            tooltip: 'Retry loading stories',
+                            onPressed: _loadCloudStories,
+                            icon: const Icon(Icons.refresh),
+                          ),
+                        ),
                       SizedBox(
                         height: 110,
                         child: ListView(
@@ -322,13 +683,18 @@ class _HomeScreenState extends State<HomeScreen> {
                           physics: const BouncingScrollPhysics(),
                           children: [
                             _buildCreateStoryCard(),
-                            _buildStoryCard('Jennifer'),
-                            _buildStoryCard('Benjamin'),
-                            _buildStoryCard('Edison'),
+                            if (ZitfaceBackend.isConfigured)
+                              ..._cloudStories.map(_buildCloudStoryCard)
+                            else ...[
+                              _buildStoryCard('Jennifer'),
+                              _buildStoryCard('Benjamin'),
+                              _buildStoryCard('Edison'),
+                            ],
                           ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      if (!ZitfaceBackend.isConfigured)
+                        const SizedBox(height: 16),
                       for (final post in _createdPosts) ...[
                         _buildCreatedPost(
                           post,
@@ -338,7 +704,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      GlassCard(
+                      if (!ZitfaceBackend.isConfigured) GlassCard(
                         padding: EdgeInsets.zero,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,11 +715,15 @@ class _HomeScreenState extends State<HomeScreen> {
                                 children: [
                                   CircleAvatar(
                                     radius: 18,
-                                    backgroundColor: AppColors.secondarySurface
+                                    backgroundColor: Theme.of(context)
+                                        .colorScheme
+                                        .surfaceContainerHighest
                                         .withValues(alpha: 0.1),
-                                    child: const Icon(
+                                    child: Icon(
                                       Icons.person,
-                                      color: AppColors.textPrimary,
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
                                       size: 16,
                                     ),
                                   ),
@@ -374,7 +744,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                         '20 minutes ago',
                                         style: TextStyle(
                                           color: mutedText,
-                                          fontSize: 11,
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
                                         ),
                                       ),
                                     ],
@@ -394,10 +765,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                 borderRadius: BorderRadius.circular(12),
                                 color: surfaceColor,
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Icon(
                                   Icons.image_outlined,
-                                  color: AppColors.textSecondary,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
                                   size: 36,
                                 ),
                               ),
@@ -408,7 +781,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'Liked by marina and 15,360 others',
                                 style: TextStyle(
                                   color: mutedText,
-                                  fontSize: 12,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ),
@@ -421,9 +795,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             _buildPostActions(
                               selected: _sampleReaction,
-                              mutedText: mutedText,
                               onLike: () => _setSampleReaction(
-                                _sampleReaction == '👍' ? null : '👍',
+                                _sampleReaction == 'Like' ? null : 'Like',
                               ),
                               onChooseReaction: () => _chooseReaction(
                                 selected: _sampleReaction,
@@ -439,7 +812,8 @@ class _HomeScreenState extends State<HomeScreen> {
                           ],
                         ),
                       ),
-                      const SizedBox(height: 24),
+                      if (!ZitfaceBackend.isConfigured)
+                        const SizedBox(height: 24),
                     ],
                   ),
                 ),
@@ -453,7 +827,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCreateStoryCard() {
     return GestureDetector(
-      onTap: _pickStoryImage,
+      onTap: ZitfaceBackend.isConfigured && _storyImageBytes != null
+          ? _publishStory
+          : _pickStoryImage,
       child: Container(
         width: 85,
         margin: const EdgeInsets.only(right: 10),
@@ -467,10 +843,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   _storyImageBytes!,
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) => Container(
-                    color: AppColors.secondarySurface,
-                    child: const Icon(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Icon(
                       Icons.broken_image_outlined,
-                      color: AppColors.textSecondary,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
                   ),
                 )
@@ -486,29 +864,88 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: AppColors.secondarySurface.withValues(
-                      alpha: 0.16,
-                    ),
+                    backgroundColor: _homeActionColor,
                     child: Icon(
                       _storyImageBytes == null
                           ? Icons.add
                           : Icons.edit_outlined,
-                      color: AppColors.textPrimary,
+                      color: Colors.white,
                       size: 18,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    _storyImageBytes == null ? 'Create story' : 'Change photo',
+                    _isPublishingStory
+                        ? 'Publishing...'
+                        : _storyImageBytes == null
+                        ? 'Create story'
+                        : ZitfaceBackend.isConfigured
+                        ? 'Share story'
+                        : 'Change photo',
                     style: const TextStyle(
-                      color: AppColors.textPrimary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                      shadows: [Shadow(color: Colors.black87, blurRadius: 4)],
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      shadows: [Shadow(color: Colors.black54, blurRadius: 4)],
                     ),
                     textAlign: TextAlign.center,
                   ),
                 ],
+              ),
+              if (_storyTrack != null)
+                Positioned(
+                  left: 4,
+                  right: 4,
+                  bottom: 4,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withValues(alpha: 0.7),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(
+                          Icons.music_note,
+                          color: Colors.white,
+                          size: 12,
+                        ),
+                        const SizedBox(width: 2),
+                        Expanded(
+                          child: Text(
+                            _storyTrack!.title,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              if (!ZitfaceBackend.isConfigured) Positioned(
+                top: 4,
+                right: 4,
+                child: IconButton(
+                  tooltip: _storyTrack == null
+                      ? 'Add story music'
+                      : 'Change story music',
+                  onPressed: _chooseStoryMusic,
+                  style: IconButton.styleFrom(
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppColors.accent,
+                    minimumSize: const Size(30, 30),
+                    padding: const EdgeInsets.all(4),
+                  ),
+                  icon: const Icon(Icons.music_note, size: 18),
+                ),
               ),
             ],
           ),
@@ -532,12 +969,12 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 18,
                   backgroundColor: Color(0x337C3AED),
                   child: Icon(
                     Icons.person,
-                    color: AppColors.textPrimary,
+                    color: Theme.of(context).colorScheme.onSurface,
                     size: 16,
                   ),
                 ),
@@ -547,7 +984,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'You',
+                        post.authorName,
                         style: TextStyle(
                           color: bodyText,
                           fontWeight: FontWeight.bold,
@@ -555,8 +992,12 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                       Text(
-                        '${post.audience} • Just now',
-                        style: TextStyle(color: mutedText, fontSize: 11),
+                        '${post.audience} • ${post.createdAt == null ? 'Just now' : _relativeTime(post.createdAt!)}',
+                        style: TextStyle(
+                          color: mutedText,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     ],
                   ),
@@ -576,15 +1017,31 @@ class _HomeScreenState extends State<HomeScreen> {
             Image.memory(
               post.imageBytes!,
               width: double.infinity,
-              height: 220,
-              fit: BoxFit.cover,
+              fit: BoxFit.fitWidth,
               errorBuilder: (context, error, stackTrace) => Container(
                 height: 220,
                 color: surfaceColor,
-                child: const Center(
+                child: Center(
                   child: Icon(
                     Icons.broken_image_outlined,
-                    color: AppColors.textSecondary,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    size: 36,
+                  ),
+                ),
+              ),
+            ),
+          if (post.imageUrl != null)
+            Image.network(
+              post.imageUrl!,
+              width: double.infinity,
+              fit: BoxFit.fitWidth,
+              errorBuilder: (context, error, stackTrace) => Container(
+                height: 220,
+                color: surfaceColor,
+                child: Center(
+                  child: Icon(
+                    Icons.broken_image_outlined,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
                     size: 36,
                   ),
                 ),
@@ -596,14 +1053,15 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           _buildPostActions(
             selected: post.myReaction,
-            mutedText: mutedText,
-            onLike: () =>
-                _setPostReaction(post, post.myReaction == '👍' ? null : '👍'),
+            onLike: () => _setPostReaction(
+              post,
+              post.myReaction == 'Like' ? null : 'Like',
+            ),
             onChooseReaction: () => _chooseReaction(
               selected: post.myReaction,
               onSelected: (reaction) => _setPostReaction(post, reaction),
             ),
-            onComment: () => _openComments(post.comments),
+            onComment: () => _openComments(post.comments, post: post),
             onShare: () => _sharePost(
               post.text.isEmpty ? 'Check out this post on ZitFace!' : post.text,
             ),
@@ -611,6 +1069,14 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+
+  String _relativeTime(DateTime createdAt) {
+    final age = DateTime.now().difference(createdAt);
+    if (age.inMinutes < 1) return 'Just now';
+    if (age.inHours < 1) return '${age.inMinutes} minutes ago';
+    if (age.inDays < 1) return '${age.inHours} hours ago';
+    return '${age.inDays} days ago';
   }
 
   Widget _buildPostSummary(Map<String, int> reactions, int commentCount) {
@@ -631,24 +1097,30 @@ class _HomeScreenState extends State<HomeScreen> {
         ...activeReactions.map(
           (reaction) => Padding(
             padding: const EdgeInsets.only(right: 3),
-            child: Text(reaction, style: const TextStyle(fontSize: 14)),
+            child: Icon(
+              _reactionIcons[reaction],
+              color: _homeActionColor,
+              size: 16,
+            ),
           ),
         ),
         if (reactionTotal > 0)
           Text(
             '$reactionTotal',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
         const Spacer(),
         if (commentCount > 0)
           Text(
             '$commentCount ${commentCount == 1 ? 'comment' : 'comments'}',
-            style: const TextStyle(
-              color: AppColors.textSecondary,
-              fontSize: 12,
+            style: TextStyle(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
             ),
           ),
       ],
@@ -657,7 +1129,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildPostActions({
     required String? selected,
-    required Color mutedText,
     required VoidCallback onLike,
     required VoidCallback onChooseReaction,
     required VoidCallback onComment,
@@ -670,7 +1141,9 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Divider(
             height: 1,
-            color: AppColors.textPrimary.withValues(alpha: 0.1),
+            color: Theme.of(
+              context,
+            ).colorScheme.onSurface.withValues(alpha: 0.1),
           ),
         ),
         Row(
@@ -680,11 +1153,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 onTap: onLike,
                 onLongPress: onChooseReaction,
                 child: _postAction(
-                  icon: isSelected ? null : Icons.thumb_up_alt_outlined,
-                  reaction: selected,
-                  label: isSelected ? _reactionNames[selected]! : 'Like',
-                  selected: isSelected,
-                  mutedText: mutedText,
+                  icon: isSelected
+                      ? _reactionIcons[selected]
+                      : Icons.thumb_up_alt_outlined,
+                  label: isSelected ? selected : 'Like',
                 ),
               ),
             ),
@@ -694,18 +1166,13 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: _postAction(
                   icon: Icons.mode_comment_outlined,
                   label: 'Comment',
-                  mutedText: mutedText,
                 ),
               ),
             ),
             Expanded(
               child: InkWell(
                 onTap: onShare,
-                child: _postAction(
-                  icon: Icons.share_outlined,
-                  label: 'Share',
-                  mutedText: mutedText,
-                ),
+                child: _postAction(icon: Icons.share_outlined, label: 'Share'),
               ),
             ),
           ],
@@ -715,33 +1182,20 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _postAction({
-    required String label,
-    required Color mutedText,
-    IconData? icon,
-    String? reaction,
-    bool selected = false,
-  }) {
+  Widget _postAction({required String label, required IconData? icon}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (reaction != null)
-            Text(reaction, style: const TextStyle(fontSize: 17))
-          else
-            Icon(
-              icon,
-              size: 18,
-              color: selected ? AppColors.accent : mutedText,
-            ),
+          Icon(icon, size: 18, color: _homeActionColor),
           const SizedBox(width: 6),
           Text(
             label,
             style: TextStyle(
-              color: selected ? AppColors.accent : mutedText,
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+              color: _homeActionColor,
+              fontSize: 13,
+              fontWeight: FontWeight.w700,
             ),
           ),
         ],
@@ -763,16 +1217,74 @@ class _HomeScreenState extends State<HomeScreen> {
               right: 0,
               child: Text(
                 name,
-                style: const TextStyle(
-                  color: AppColors.textSecondary,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.onSurface,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
                 ),
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildCloudStoryCard(Map<String, dynamic> story) {
+    return GestureDetector(
+      onTap: () => _openCloudStory(story),
+      child: Container(
+        width: 85,
+        margin: const EdgeInsets.only(right: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.accent, width: 2),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Image.network(
+                story['image_url'] as String,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                  child: Icon(
+                    Icons.broken_image_outlined,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment.bottomCenter,
+                child: Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(5, 14, 5, 5),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, Colors.black87],
+                    ),
+                  ),
+                  child: Text(
+                    story['author_name'] as String,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -784,14 +1296,53 @@ class _HomePost {
     required this.text,
     required this.audience,
     required this.imageBytes,
-  });
+    this.id,
+    this.authorName = 'You',
+    this.createdAt,
+    this.imageUrl,
+    Map<String, int>? reactions,
+    List<String>? comments,
+    this.myReaction,
+  }) : reactions = reactions ?? {},
+       comments = comments ?? [];
 
+  factory _HomePost.fromCloudRow(Map<String, dynamic> row) {
+    final visibility = row['visibility'] as String;
+    return _HomePost(
+      text: row['body'] as String,
+      id: row['id'] as String,
+      audience: switch (visibility) {
+        'public' => 'Public',
+        'private' => 'Only me',
+        _ => 'Friends',
+      },
+      imageBytes: null,
+      authorName: row['author_name'] as String,
+      createdAt: DateTime.tryParse(row['created_at'] as String),
+      imageUrl: row['image_url'] as String?,
+      reactions: Map<String, int>.from(row['reactions'] as Map),
+      comments: List<String>.from(row['comments'] as List),
+      myReaction: row['my_reaction'] as String?,
+    );
+  }
+
+  final String? id;
   final String text;
   final String audience;
   final Uint8List? imageBytes;
-  final Map<String, int> reactions = {};
-  final List<String> comments = [];
+  final String authorName;
+  final DateTime? createdAt;
+  final String? imageUrl;
+  final Map<String, int> reactions;
+  final List<String> comments;
   String? myReaction;
+}
+
+class _StoryTrack {
+  const _StoryTrack({required this.title, required this.artist});
+
+  final String title;
+  final String artist;
 }
 
 class _CommentsSheet extends StatefulWidget {
@@ -829,8 +1380,8 @@ class _CommentsSheetState extends State<_CommentsSheet> {
           maxHeight: MediaQuery.of(context).size.height * 0.7,
         ),
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
         ),
         child: Column(
@@ -840,15 +1391,15 @@ class _CommentsSheetState extends State<_CommentsSheet> {
               width: 38,
               height: 4,
               decoration: BoxDecoration(
-                color: AppColors.textSecondary,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 borderRadius: BorderRadius.circular(4),
               ),
             ),
             const SizedBox(height: 16),
-            const Text(
+            Text(
               'Comments',
               style: TextStyle(
-                color: AppColors.textPrimary,
+                color: Theme.of(context).colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -868,16 +1419,20 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                       ),
                       title: Text(
                         comment,
-                        style: const TextStyle(color: AppColors.textPrimary),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
                       ),
                     ),
                   if (widget.comments.isEmpty)
-                    const Padding(
+                    Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
                       child: Text(
                         'Be the first to comment.',
                         textAlign: TextAlign.center,
-                        style: TextStyle(color: AppColors.textSecondary),
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        ),
                       ),
                     ),
                 ],
@@ -888,14 +1443,18 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
                     decoration: InputDecoration(
                       hintText: 'Write a comment...',
-                      hintStyle: const TextStyle(
-                        color: AppColors.textSecondary,
+                      hintStyle: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
                       filled: true,
-                      fillColor: AppColors.textPrimary.withValues(alpha: 0.08),
+                      fillColor: Theme.of(
+                        context,
+                      ).colorScheme.onSurface.withValues(alpha: 0.08),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(22),
                         borderSide: BorderSide.none,
@@ -911,7 +1470,11 @@ class _CommentsSheetState extends State<_CommentsSheet> {
                 IconButton(
                   tooltip: 'Send comment',
                   onPressed: _submitComment,
-                  icon: const Icon(Icons.send, color: AppColors.textPrimary),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _homeActionColor,
+                    foregroundColor: Colors.white,
+                  ),
+                  icon: const Icon(Icons.send),
                 ),
               ],
             ),
@@ -945,13 +1508,11 @@ class _CircleIconButton extends StatelessWidget {
           child: Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppColors.textPrimary.withValues(alpha: 0.05),
+              color: _homeActionColor,
               shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.textPrimary.withValues(alpha: 0.05),
-              ),
+              border: Border.all(color: _homeActionColor),
             ),
-            child: Icon(icon, color: AppColors.textPrimary, size: 18),
+            child: Icon(icon, color: Colors.white, size: 18),
           ),
         ),
       ),

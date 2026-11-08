@@ -1,16 +1,21 @@
+import 'dart:async';
+
 import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import '../services/zitface_backend.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String peerName;
   final String peerHandle;
   final bool isOnline;
+  final String? conversationId;
 
   const ChatDetailScreen({
     super.key,
     required this.peerName,
     required this.peerHandle,
     this.isOnline = true,
+    this.conversationId,
   });
 
   @override
@@ -21,7 +26,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  final List<Map<String, dynamic>> _messages = [
+  final List<Map<String, dynamic>> _messages = ZitfaceBackend.isConfigured
+      ? []
+      : [
     {
       'sender': 'peer',
       'text': 'Hey! Is the CS150 study guide still available on your profile?',
@@ -38,26 +45,94 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           'Awesome, got it. Are you attending the lab session at Riverside later?',
       'time': '10:45 AM',
     },
-  ];
+        ];
+  StreamSubscription<List<Map<String, dynamic>>>? _messagesSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    if (ZitfaceBackend.isConfigured && widget.conversationId != null) {
+      _messagesSubscription = ZitfaceBackend.watchMessages(
+        widget.conversationId!,
+      ).listen(
+        (rows) {
+          if (!mounted) return;
+          setState(() {
+            _messages
+              ..clear()
+              ..addAll(rows.map(_messageFromRemote));
+          });
+          _scrollToBottom();
+        },
+        onError: (Object error) {
+          if (mounted) _showMessageError('load', error);
+        },
+      );
+    }
+  }
 
   @override
   void dispose() {
+    _messagesSubscription?.cancel();
     _messageController.dispose();
     _scrollController.dispose();
     super.dispose();
   }
 
-  void _sendMessage() {
+  Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
     if (text.isEmpty) return;
+
+    if (ZitfaceBackend.isConfigured) {
+      final conversationId = widget.conversationId;
+      if (conversationId == null) {
+        _showMessageError(
+          'send',
+          StateError('The conversation is not available.'),
+        );
+        return;
+      }
+      try {
+        await ZitfaceBackend.sendMessage(
+          conversationId: conversationId,
+          body: text,
+        );
+        if (mounted) _messageController.clear();
+      } on Exception catch (error) {
+        if (mounted) _showMessageError('send', error);
+      }
+      return;
+    }
 
     setState(() {
       _messages.add({'sender': 'me', 'text': text, 'time': 'Just now'});
     });
 
     _messageController.clear();
+    _scrollToBottom();
+  }
 
-    // Auto-scroll to bottom
+  Map<String, dynamic> _messageFromRemote(Map<String, dynamic> row) {
+    final createdAt = DateTime.parse(row['created_at'] as String).toLocal();
+    final hour = createdAt.hour % 12 == 0 ? 12 : createdAt.hour % 12;
+    final time =
+        '$hour:${createdAt.minute.toString().padLeft(2, '0')} ${createdAt.hour < 12 ? 'AM' : 'PM'}';
+    return {
+      'sender': row['sender_id'] == ZitfaceBackend.client.auth.currentUser?.id
+          ? 'me'
+          : 'peer',
+      'text': row['body'] as String,
+      'time': time,
+    };
+  }
+
+  void _showMessageError(String action, Object error) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Could not $action messages: $error')),
+    );
+  }
+
+  void _scrollToBottom() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {
         _scrollController.animateTo(
@@ -72,14 +147,14 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.pageBackground,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
-        backgroundColor: AppColors.surface,
+        backgroundColor: Theme.of(context).colorScheme.surface,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(
+          icon: Icon(
             Icons.arrow_back_ios_new,
-            color: AppColors.textPrimary,
+            color: Theme.of(context).colorScheme.onSurface,
             size: 18,
           ),
           onPressed: () => Navigator.pop(context),
@@ -90,13 +165,13 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: AppColors.secondarySurface.withValues(
-                    alpha: 0.1,
-                  ),
+                  backgroundColor: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
                   child: Text(
                     widget.peerName.isNotEmpty ? widget.peerName[0] : 'U',
-                    style: const TextStyle(
-                      color: AppColors.textPrimary,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -111,7 +186,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       decoration: BoxDecoration(
                         color: const Color(0xFF10B981),
                         shape: BoxShape.circle,
-                        border: Border.all(color: AppColors.surface, width: 2),
+                        border: Border.all(
+                          color: Theme.of(context).colorScheme.surface,
+                          width: 2,
+                        ),
                       ),
                     ),
                   ),
@@ -123,8 +201,8 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
               children: [
                 Text(
                   widget.peerName,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurface,
                     fontSize: 15,
                     fontWeight: FontWeight.bold,
                   ),
@@ -134,7 +212,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                   style: TextStyle(
                     color: widget.isOnline
                         ? const Color(0xFF10B981)
-                        : AppColors.textSecondary,
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
                     fontSize: 11,
                   ),
                 ),
@@ -173,8 +251,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: isMe
-                            ? AppColors.textPrimary
-                            : AppColors.textPrimary.withValues(alpha: 0.06),
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(
+                                context,
+                              ).colorScheme.onSurface.withValues(alpha: 0.06),
                         borderRadius: BorderRadius.only(
                           topLeft: const Radius.circular(18),
                           topRight: const Radius.circular(18),
@@ -184,9 +264,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                         border: isMe
                             ? null
                             : Border.all(
-                                color: AppColors.textPrimary.withValues(
-                                  alpha: 0.08,
-                                ),
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurface.withValues(alpha: 0.08),
                               ),
                       ),
                       child: Column(
@@ -199,7 +279,7 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             style: TextStyle(
                               color: isMe
                                   ? AppColors.onAccent
-                                  : AppColors.textPrimary,
+                                  : Theme.of(context).colorScheme.onSurface,
                               fontSize: 14,
                               height: 1.3,
                             ),
@@ -210,7 +290,9 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                             style: TextStyle(
                               color: isMe
                                   ? Colors.black45
-                                  : AppColors.textSecondary,
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
                               fontSize: 10,
                             ),
                           ),
@@ -226,10 +308,12 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
-                color: AppColors.surface,
+                color: Theme.of(context).colorScheme.surface,
                 border: Border(
                   top: BorderSide(
-                    color: AppColors.textPrimary.withValues(alpha: 0.08),
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.08),
                   ),
                 ),
               ),
@@ -239,22 +323,28 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       decoration: BoxDecoration(
-                        color: AppColors.textPrimary.withValues(alpha: 0.04),
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.04),
                         borderRadius: BorderRadius.circular(24),
                         border: Border.all(
-                          color: AppColors.textPrimary.withValues(alpha: 0.08),
+                          color: Theme.of(
+                            context,
+                          ).colorScheme.onSurface.withValues(alpha: 0.08),
                         ),
                       ),
                       child: TextField(
                         controller: _messageController,
-                        style: const TextStyle(
-                          color: AppColors.textPrimary,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
                         ),
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           hintText: 'Type a message...',
                           hintStyle: TextStyle(
-                            color: AppColors.textSecondary,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                             fontSize: 13,
                           ),
                           border: InputBorder.none,

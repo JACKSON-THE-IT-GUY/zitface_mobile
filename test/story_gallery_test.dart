@@ -29,4 +29,17 @@ void main() {
     expect(pickerCall?.arguments['source'], 1);
     expect(find.text('Create story'), findsOneWidget);
   });
+
+  testWidgets('adds a selected music track to the story', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: HomeScreen()));
+    await tester.tap(find.byTooltip('Add story music'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add music to your story'), findsOneWidget);
+    await tester.tap(find.text('Paper Skies'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Paper Skies'), findsOneWidget);
+    expect(find.byIcon(Icons.music_note), findsNWidgets(2));
+  });
 }
