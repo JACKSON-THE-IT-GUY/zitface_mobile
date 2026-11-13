@@ -25,22 +25,44 @@ profiles, membership review, social features, messaging, cohorts, and listings.
    [`supabase/migrations/20261104030000_marketplace_listings.sql`](supabase/migrations/20261104030000_marketplace_listings.sql).
    Then apply
    [`supabase/migrations/20261105000000_auto_approve_valid_students.sql`](supabase/migrations/20261105000000_auto_approve_valid_students.sql).
-   Finally, apply
+   Then apply
    [`supabase/migrations/20261105010000_story_media.sql`](supabase/migrations/20261105010000_story_media.sql).
+   Then apply
+   [`supabase/migrations/20261108000000_marketplace_media.sql`](supabase/migrations/20261108000000_marketplace_media.sql)
+   to enable marketplace photos.
+   Then apply
+   [`supabase/migrations/20261109000000_story_video_support.sql`](supabase/migrations/20261109000000_story_video_support.sql)
+   to allow private MP4/MOV story videos up to 60 seconds.
+   Finally, apply
+   [`supabase/migrations/20261110000000_story_audio_uploads.sql`](supabase/migrations/20261110000000_story_audio_uploads.sql)
+   to allow private, rights-confirmed story soundtracks.
+   Then apply
+   [`supabase/migrations/20261111000000_private_profile_avatars.sql`](supabase/migrations/20261111000000_private_profile_avatars.sql)
+   to move profile photos to private storage with profile-visibility checks.
+   Then apply
+   [`supabase/migrations/20261112000000_profile_details.sql`](supabase/migrations/20261112000000_profile_details.sql)
+   to add editable program, study year, interests, and website fields.
    It creates profiles, friend requests, follows, posts and media metadata,
    comments, reactions, stories and views, conversations and messages,
    notifications, academic cohorts, and linked groups. It also sets up the
    avatar storage bucket, indexes, and Row Level Security policies. New
    Supabase Auth users automatically receive a profile row.
-3. Run the app with the project URL and public publishable key:
+3. Keep local Supabase values in an ignored `.env.local` file:
 
-   ```sh
-   flutter run \
-     --dart-define=SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co \
-     --dart-define=SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLIC_PUBLISHABLE_KEY
+   ```dotenv
+   SUPABASE_URL=https://YOUR_PROJECT_REF.supabase.co
+   SUPABASE_PUBLISHABLE_KEY=YOUR_PUBLIC_PUBLISHABLE_KEY
    ```
 
-   For web builds, pass the same `--dart-define` arguments to `flutter build web`.
+   Run or build with:
+
+   ```sh
+   flutter run --dart-define-from-file=.env.local
+   flutter build web --release --dart-define-from-file=.env.local
+   ```
+
+   For a phone browser preview, serve `build/web` on `0.0.0.0` and open
+   `http://YOUR_MAC_WIFI_IP:PORT/` on the phone connected to the same Wi-Fi.
 
 For VS Code, choose **ZitFace (Supabase)** in Run and Debug. It uses this
 project URL and prompts for the publishable key each launch; the key is not
@@ -59,9 +81,32 @@ use the debug signing key.
 With Supabase configured, authentication, profiles, membership review, feed
 posts and reactions/comments, friend discovery and requests, direct messaging,
 academic cohorts, group membership, and marketplace listings use the backend.
-Stories now use the cloud database and private storage. Materials, group
-discussions, and marketplace payments/media are not implemented as cloud
-features yet. Without credentials, debug builds continue in local demo mode;
+Stories support private photos and videos, captions, Friends/Public audiences,
+24-hour expiry, playback controls, view counts, owner deletion, and private
+user-uploaded soundtracks with a rights confirmation.
+Account settings support display-name and password changes, private profiles,
+signing out other sessions, and account deletion. Profile photos are served with
+short-lived signed URLs after storage RLS checks the profile audience. Deploy
+the account deletion function before enabling account creation:
+
+```sh
+supabase functions deploy delete-account --project-ref YOUR_PROJECT_REF
+```
+
+The function uses Supabase's server-side `SUPABASE_SERVICE_ROLE_KEY`; never add
+that key to the Flutter app or client build settings. The in-app Privacy and
+Terms page is a draft summary and must be replaced or approved by the operator
+before public launch.
+Marketplace photos use private cloud storage. Each published post earns one
+contribution star, calculated from the member's current posts.
+Profile names and photos appear in the feed, friends, direct chats, and
+marketplace; cloud pages refresh member details when revisited. Sample group
+discussions are not connected to member profiles.
+Members can message discoverable profiles without waiting for a friend request
+to be accepted. Materials, group discussions, and marketplace payments are not
+implemented as cloud features yet. Without credentials, debug builds continue
+in local demo mode (demo posts, stars, listings, photos, and messages last only
+for the current app session);
 release builds show an unavailable screen instead. Existing local profiles
 and cohorts are not automatically imported into Supabase.
 

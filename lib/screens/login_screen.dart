@@ -23,6 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool _obscurePassword = true;
   bool _isSubmitting = false;
   bool _isSendingReset = false;
+  bool _isResendingConfirmation = false;
 
   @override
   void initState() {
@@ -87,6 +88,36 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) _showMessage('Could not send reset email: $error');
     } finally {
       if (mounted) setState(() => _isSendingReset = false);
+    }
+  }
+
+  Future<void> _resendConfirmation() async {
+    if (_isResendingConfirmation) return;
+    final email = _emailController.text.trim();
+    if (email.isEmpty) {
+      _showMessage('Enter your email address first.');
+      return;
+    }
+    if (!ZitfaceBackend.isConfigured) {
+      _showMessage('Configure Supabase to resend a confirmation email.');
+      return;
+    }
+
+    setState(() => _isResendingConfirmation = true);
+    try {
+      await ZitfaceBackend.client.auth.resend(
+        type: OtpType.signup,
+        email: email,
+      );
+      if (mounted) {
+        _showMessage('If the account needs confirmation, a new email was requested.');
+      }
+    } on AuthException catch (error) {
+      if (mounted) _showMessage(error.message);
+    } on Exception catch (error) {
+      if (mounted) _showMessage('Could not resend confirmation email: $error');
+    } finally {
+      if (mounted) setState(() => _isResendingConfirmation = false);
     }
   }
 
@@ -237,6 +268,20 @@ class _LoginScreenState extends State<LoginScreen> {
                       _isSendingReset
                           ? 'Sending reset email...'
                           : 'Forgot Password?',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _isResendingConfirmation
+                        ? null
+                        : _resendConfirmation,
+                    child: Text(
+                      _isResendingConfirmation
+                          ? 'Requesting confirmation email...'
+                          : 'Resend confirmation email',
                       style: TextStyle(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                         fontSize: 13,

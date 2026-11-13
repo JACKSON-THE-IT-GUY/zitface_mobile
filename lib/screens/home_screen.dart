@@ -1,22 +1,40 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:just_audio/just_audio.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:video_player/video_player.dart';
 import '../theme/app_theme.dart';
 import '../services/zitface_backend.dart';
 import '../widget/glass_card.dart';
+import '../widget/unavailable_feature.dart';
+import '../widget/profile_avatar.dart';
+import '../services/profile_identity.dart';
 import 'menu_screen.dart';
 import 'create_post_screen.dart';
-import 'profile_screen.dart';
+import 'story_composer_sheet.dart';
 
 const _homeActionColor = Color(0xFFC62828);
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback? onProfileTap;
+  final VoidCallback? onPostPublished;
+  final ValueChanged<int>? onNavigate;
+  final ValueChanged<ProfileIdentity>? onProfileChanged;
+  final ValueListenable<ProfileIdentity>? profile;
+  final Listenable? refreshSignal;
 
-  const HomeScreen({super.key, this.onProfileTap});
+  const HomeScreen({
+    super.key,
+    this.onProfileTap,
+    this.onPostPublished,
+    this.onNavigate,
+    this.onProfileChanged,
+    this.profile,
+    this.refreshSignal,
+  });
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -33,7 +51,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final ImagePicker _imagePicker = ImagePicker();
   Uint8List? _storyImageBytes;
-  String? _storyContentType;
   _StoryTrack? _storyTrack;
   final List<Map<String, dynamic>> _cloudStories = [];
   bool _isLoadingCloudStories = ZitfaceBackend.isConfigured;
@@ -61,22 +78,36 @@ class _HomeScreenState extends State<HomeScreen> {
     'Sad',
     'Angry',
   ];
-  static const Map<String, IconData> _reactionIcons = {
-    'Love': Icons.favorite,
-    'Like': Icons.thumb_up,
-    'Laugh': Icons.sentiment_satisfied_alt,
-    'Wow': Icons.sentiment_very_satisfied,
-    'Sad': Icons.sentiment_dissatisfied,
-    'Angry': Icons.sentiment_very_dissatisfied,
+  static final Map<String, String> _reactionEmojis = {
+    'Love': String.fromCharCodes([0x2764, 0xfe0f]),
+    'Like': String.fromCharCode(0x1f44d),
+    'Laugh': String.fromCharCode(0x1f602),
+    'Wow': String.fromCharCode(0x1f62e),
+    'Sad': String.fromCharCode(0x1f622),
+    'Angry': String.fromCharCode(0x1f621),
   };
 
   @override
   void initState() {
     super.initState();
+    widget.refreshSignal?.addListener(_refresh);
     if (ZitfaceBackend.isConfigured) {
       unawaited(_loadCloudFeed());
       unawaited(_loadCloudStories());
     }
+  }
+
+  void _refresh() {
+    if (ZitfaceBackend.isConfigured) {
+      unawaited(_loadCloudFeed());
+      unawaited(_loadCloudStories());
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.refreshSignal?.removeListener(_refresh);
+    super.dispose();
   }
 
   Future<void> _loadCloudStories() async {
@@ -126,16 +157,33 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _openMenu(BuildContext context) {
-    showModalBottomSheet(
+    showGeneralDialog<void>(
       context: context,
-      isScrollControlled: true,
-      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      barrierDismissible: true,
+      barrierLabel: 'Close menu',
+      barrierColor: Colors.black54,
+      transitionDuration: const Duration(milliseconds: 260),
+      pageBuilder: (context, _, _) => Align(
+        alignment: Alignment.centerLeft,
+        child: SizedBox(
+          width: MediaQuery.of(context).size.width * 0.88,
+          height: double.infinity,
+          child: Material(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: MenuScreen(
+              onNavigate: widget.onNavigate,
+              profile: widget.profile,
+              onProfileChanged: widget.onProfileChanged,
+            ),
+          ),
+        ),
       ),
-      builder: (context) => SizedBox(
-        height: MediaQuery.of(context).size.height * 0.88,
-        child: const MenuScreen(),
+      transitionBuilder: (context, animation, _, child) => SlideTransition(
+        position: Tween<Offset>(begin: const Offset(-1, 0), end: Offset.zero)
+            .animate(
+              CurvedAnimation(parent: animation, curve: Curves.easeOutCubic),
+            ),
+        child: child,
       ),
     );
   }
@@ -145,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const CreatePostScreen(),
+      builder: (context) => CreatePostScreen(profile: widget.profile?.value),
     );
     if (post == null || !mounted) return;
     if (ZitfaceBackend.isConfigured) {
@@ -154,9 +202,9 @@ class _HomeScreenState extends State<HomeScreen> {
           body: post['text']! as String,
           visibility: post['visibility']! as String,
           imageBytes: post['imageBytes'] as Uint8List?,
-          imageContentType:
-              post['imageContentType'] as String? ?? 'image/jpeg',
+          imageContentType: post['imageContentType'] as String? ?? 'image/jpeg',
         );
+        widget.onPostPublished?.call();
         await _loadCloudFeed();
       } on Exception catch (error) {
         if (!context.mounted) return;
@@ -176,6 +224,7 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       );
     });
+    widget.onPostPublished?.call();
   }
 
   void _setSampleReaction(String? reaction) {
@@ -255,10 +304,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 IconButton(
                   tooltip: reaction,
                   onPressed: () => Navigator.pop(context, reaction),
-                  icon: Icon(
-                    _reactionIcons[reaction],
-                    color: _homeActionColor,
-                    size: 28,
+                  icon: Text(
+                    _reactionEmojis[reaction]!,
+                    style: const TextStyle(fontSize: 28),
                   ),
                 ),
             ],
@@ -320,28 +368,9 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       if (image == null) return;
 
-      final extension = image.name.split('.').last.toLowerCase();
-      final contentType = image.mimeType ?? switch (extension) {
-        'jpg' || 'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        _ => null,
-      };
-      if (!const {'image/jpeg', 'image/png', 'image/webp'}.contains(
-        contentType,
-      )) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Choose a JPEG, PNG, or WebP story image.')),
-        );
-        return;
-      }
       final imageBytes = await image.readAsBytes();
       if (!mounted) return;
-      setState(() {
-        _storyImageBytes = imageBytes;
-        _storyContentType = contentType;
-      });
+      setState(() => _storyImageBytes = imageBytes);
     } on Exception catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -351,21 +380,30 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _publishStory() async {
-    final imageBytes = _storyImageBytes;
-    final contentType = _storyContentType;
-    if (imageBytes == null || contentType == null || _isPublishingStory) return;
+    if (_isPublishingStory) return;
+    final story = await showModalBottomSheet<Map<String, Object?>>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => const StoryComposerSheet(),
+    );
+    if (story == null || !mounted) return;
 
     setState(() => _isPublishingStory = true);
     try {
       await ZitfaceBackend.createStory(
-        imageBytes: imageBytes,
-        contentType: contentType,
+        mediaBytes: story['mediaBytes']! as Uint8List,
+        mediaType: story['mediaType']! as String,
+        contentType: story['contentType']! as String,
+        durationSeconds: story['durationSeconds'] as int?,
+        caption: story['caption'] as String? ?? '',
+        visibility: story['visibility']! as String,
+        audioBytes: story['audioBytes'] as Uint8List?,
+        audioContentType: story['audioContentType'] as String?,
+        audioRightsConfirmed: story['audioRightsConfirmed'] as bool? ?? false,
       );
       if (!mounted) return;
-      setState(() {
-        _storyImageBytes = null;
-        _storyContentType = null;
-      });
       await _loadCloudStories();
     } on Exception catch (error) {
       if (!mounted) return;
@@ -408,23 +446,68 @@ class _HomeScreenState extends State<HomeScreen> {
               SizedBox(
                 height: MediaQuery.of(dialogContext).size.height * 0.68,
                 width: double.infinity,
-                child: Image.network(
-                  story['image_url'] as String,
-                  fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const Center(
-                    child: Icon(Icons.broken_image_outlined, size: 40),
-                  ),
-                ),
+                child: story['media_type'] == 'video'
+                    ? _CloudStoryVideoPlayer(url: story['image_url'] as String)
+                    : Image.network(
+                        story['image_url'] as String,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) =>
+                            const Center(
+                              child: Icon(
+                                Icons.broken_image_outlined,
+                                size: 40,
+                              ),
+                            ),
+                      ),
               ),
               ListTile(
                 title: Text(story['author_name'] as String),
-                subtitle: Text((story['caption'] as String?) ?? ''),
-                trailing: IconButton(
-                  tooltip: 'Close story',
-                  onPressed: () => Navigator.pop(dialogContext),
-                  icon: const Icon(Icons.close),
+                subtitle: Text(
+                  [
+                    (story['caption'] as String?) ?? '',
+                    if (story['author_id'] ==
+                        ZitfaceBackend.client.auth.currentUser?.id)
+                      '${story['views_count'] ?? 0} views',
+                  ].where((text) => text.isNotEmpty).join(' · '),
+                ),
+                trailing: Wrap(
+                  spacing: 4,
+                  children: [
+                    if (story['author_id'] ==
+                        ZitfaceBackend.client.auth.currentUser?.id)
+                      IconButton(
+                        tooltip: 'Delete story',
+                        onPressed: () async {
+                          final messenger = ScaffoldMessenger.of(context);
+                          try {
+                            await ZitfaceBackend.deleteStory(
+                              storyId: story['id'] as String,
+                              storagePath: story['storage_path'] as String,
+                            );
+                            if (!dialogContext.mounted) return;
+                            Navigator.pop(dialogContext);
+                            await _loadCloudStories();
+                          } on Exception catch (error) {
+                            if (!mounted) return;
+                            messenger.showSnackBar(
+                              SnackBar(
+                                content: Text('Could not delete story: $error'),
+                              ),
+                            );
+                          }
+                        },
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    IconButton(
+                      tooltip: 'Close story',
+                      onPressed: () => Navigator.pop(dialogContext),
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
                 ),
               ),
+              if (story['audio_url'] is String)
+                _CloudStoryAudioPlayer(url: story['audio_url'] as String),
             ],
           ),
         ),
@@ -538,45 +621,48 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 Padding(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
+                    horizontal: 0,
                     vertical: 14,
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'ZITFACE',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface,
-                          fontSize: 24,
-                          fontWeight: FontWeight.w900,
-                          letterSpacing: 1.0,
-                        ),
+                      Row(
+                        children: [
+                          _CircleIconButton(
+                            icon: Icons.menu,
+                            tooltip: 'Open menu',
+                            onTap: () => _openMenu(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'ZITFACE',
+                            style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                        ],
                       ),
                       Row(
                         children: [
-                          _CircleIconButton(icon: Icons.search, onTap: () {}),
-                          const SizedBox(width: 10),
-                          // Facebook-style Menu Trigger
                           _CircleIconButton(
-                            icon: Icons.menu,
-                            onTap: () => _openMenu(context),
+                            icon: Icons.search,
+                            onTap: () => showUnavailableFeature(
+                              context,
+                              'Global search',
+                            ),
                           ),
                           const SizedBox(width: 10),
-                          _CircleIconButton(
-                            icon: Icons.person_outline,
-                            tooltip: 'Profile',
-                            onTap:
-                                widget.onProfileTap ??
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) =>
-                                          const ProfileScreen(),
-                                    ),
-                                  );
-                                },
+                          Tooltip(
+                            message: 'Profile',
+                            child: InkWell(
+                              borderRadius: BorderRadius.circular(24),
+                              onTap: widget.onProfileTap,
+                              child: _myAvatar(radius: 21),
+                            ),
                           ),
                         ],
                       ),
@@ -586,24 +672,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Expanded(
                   child: ListView(
                     physics: const BouncingScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: EdgeInsets.zero,
                     children: [
-                      GlassCard(
+                      Container(
                         padding: const EdgeInsets.all(12),
+                        color: Colors.transparent,
                         child: Row(
                           children: [
-                            CircleAvatar(
-                              radius: 18,
-                              backgroundColor: Theme.of(context)
-                                  .colorScheme
-                                  .surfaceContainerHighest
-                                  .withValues(alpha: 0.1),
-                              child: Icon(
-                                Icons.person,
-                                color: Theme.of(context).colorScheme.onSurface,
-                                size: 18,
-                              ),
-                            ),
+                            _myAvatar(radius: 21),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Container(
@@ -663,8 +739,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           padding: EdgeInsets.symmetric(vertical: 24),
                           child: Center(child: Text('No posts yet.')),
                         ),
-                      if (ZitfaceBackend.isConfigured &&
-                          _isLoadingCloudStories)
+                      if (ZitfaceBackend.isConfigured && _isLoadingCloudStories)
                         const LinearProgressIndicator(),
                       if (ZitfaceBackend.isConfigured &&
                           _cloudStoryError != null)
@@ -677,7 +752,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                       SizedBox(
-                        height: 110,
+                        height: 166,
                         child: ListView(
                           scrollDirection: Axis.horizontal,
                           physics: const BouncingScrollPhysics(),
@@ -704,114 +779,126 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: 16),
                       ],
-                      if (!ZitfaceBackend.isConfigured) GlassCard(
-                        padding: EdgeInsets.zero,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.all(12),
-                              child: Row(
-                                children: [
-                                  CircleAvatar(
-                                    radius: 18,
-                                    backgroundColor: Theme.of(context)
-                                        .colorScheme
-                                        .surfaceContainerHighest
-                                        .withValues(alpha: 0.1),
-                                    child: Icon(
-                                      Icons.person,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurface,
-                                      size: 16,
+                      if (!ZitfaceBackend.isConfigured)
+                        Container(
+                          color: Colors.transparent,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.all(12),
+                                child: Row(
+                                  children: [
+                                    CircleAvatar(
+                                      radius: 18,
+                                      backgroundColor: Theme.of(context)
+                                          .colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(alpha: 0.1),
+                                      child: Icon(
+                                        Icons.person,
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurface,
+                                        size: 16,
+                                      ),
                                     ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Cristofar',
-                                        style: TextStyle(
-                                          color: bodyText,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 14,
+                                    const SizedBox(width: 12),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Cristofar',
+                                          style: TextStyle(
+                                            color: bodyText,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                          ),
                                         ),
-                                      ),
-                                      Text(
-                                        '20 minutes ago',
-                                        style: TextStyle(
-                                          color: mutedText,
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w600,
+                                        Text(
+                                          '20 minutes ago',
+                                          style: TextStyle(
+                                            color: mutedText,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
-                                      ),
-                                    ],
-                                  ),
-                                  const Spacer(),
-                                  Icon(Icons.more_horiz, color: mutedText),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              height: 220,
-                              width: double.infinity,
-                              margin: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(12),
-                                color: surfaceColor,
-                              ),
-                              child: Center(
-                                child: Icon(
-                                  Icons.image_outlined,
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurfaceVariant,
-                                  size: 36,
+                                      ],
+                                    ),
+                                    const Spacer(),
+                                    Icon(Icons.more_horiz, color: mutedText),
+                                  ],
                                 ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                              child: Text(
-                                'Liked by marina and 15,360 others',
-                                style: TextStyle(
-                                  color: mutedText,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w600,
+                              Container(
+                                height: 220,
+                                width: double.infinity,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(12),
+                                  color: surfaceColor,
+                                ),
+                                child: Center(
+                                  child: Icon(
+                                    Icons.image_outlined,
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    size: 36,
+                                  ),
                                 ),
                               ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-                              child: _buildPostSummary(
-                                _sampleReactionCounts,
-                                _sampleCommentCount,
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  16,
+                                  12,
+                                  16,
+                                  4,
+                                ),
+                                child: Text(
+                                  'Liked by marina and 15,360 others',
+                                  style: TextStyle(
+                                    color: mutedText,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                               ),
-                            ),
-                            _buildPostActions(
-                              selected: _sampleReaction,
-                              onLike: () => _setSampleReaction(
-                                _sampleReaction == 'Like' ? null : 'Like',
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  12,
+                                  8,
+                                  12,
+                                  0,
+                                ),
+                                child: _buildPostSummary(
+                                  _sampleReactionCounts,
+                                  _sampleCommentCount,
+                                ),
                               ),
-                              onChooseReaction: () => _chooseReaction(
+                              _buildPostActions(
                                 selected: _sampleReaction,
-                                onSelected: _setSampleReaction,
+                                onLike: () => _setSampleReaction(
+                                  _sampleReaction == 'Like' ? null : 'Like',
+                                ),
+                                onChooseReaction: () => _chooseReaction(
+                                  selected: _sampleReaction,
+                                  onSelected: _setSampleReaction,
+                                ),
+                                onComment: () => _openComments(
+                                  _sampleComments,
+                                  isSamplePost: true,
+                                ),
+                                onShare: () => _sharePost(
+                                  'Check out this post on ZitFace!',
+                                ),
                               ),
-                              onComment: () => _openComments(
-                                _sampleComments,
-                                isSamplePost: true,
-                              ),
-                              onShare: () =>
-                                  _sharePost('Check out this post on ZitFace!'),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
                       if (!ZitfaceBackend.isConfigured)
                         const SizedBox(height: 24),
                     ],
@@ -827,9 +914,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildCreateStoryCard() {
     return GestureDetector(
-      onTap: ZitfaceBackend.isConfigured && _storyImageBytes != null
-          ? _publishStory
-          : _pickStoryImage,
+      onTap: ZitfaceBackend.isConfigured ? _publishStory : _pickStoryImage,
       child: Container(
         width: 85,
         margin: const EdgeInsets.only(right: 10),
@@ -879,8 +964,6 @@ class _HomeScreenState extends State<HomeScreen> {
                         ? 'Publishing...'
                         : _storyImageBytes == null
                         ? 'Create story'
-                        : ZitfaceBackend.isConfigured
-                        ? 'Share story'
                         : 'Change photo',
                     style: const TextStyle(
                       color: Colors.white,
@@ -930,23 +1013,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                 ),
-              if (!ZitfaceBackend.isConfigured) Positioned(
-                top: 4,
-                right: 4,
-                child: IconButton(
-                  tooltip: _storyTrack == null
-                      ? 'Add story music'
-                      : 'Change story music',
-                  onPressed: _chooseStoryMusic,
-                  style: IconButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppColors.accent,
-                    minimumSize: const Size(30, 30),
-                    padding: const EdgeInsets.all(4),
+              if (!ZitfaceBackend.isConfigured)
+                Positioned(
+                  top: 4,
+                  right: 4,
+                  child: IconButton(
+                    tooltip: _storyTrack == null
+                        ? 'Add story music'
+                        : 'Change story music',
+                    onPressed: _chooseStoryMusic,
+                    style: IconButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.accent,
+                      minimumSize: const Size(30, 30),
+                      padding: const EdgeInsets.all(4),
+                    ),
+                    icon: const Icon(Icons.music_note, size: 18),
                   ),
-                  icon: const Icon(Icons.music_note, size: 18),
                 ),
-              ),
             ],
           ),
         ),
@@ -969,28 +1053,41 @@ class _HomeScreenState extends State<HomeScreen> {
             padding: const EdgeInsets.all(12),
             child: Row(
               children: [
-                CircleAvatar(
-                  radius: 18,
-                  backgroundColor: Color(0x337C3AED),
-                  child: Icon(
-                    Icons.person,
-                    color: Theme.of(context).colorScheme.onSurface,
-                    size: 16,
-                  ),
-                ),
+                post.isMine && widget.profile != null
+                    ? _myAvatar()
+                    : ProfileAvatar(
+                        name: post.authorName,
+                        avatarUrl: post.avatarUrl,
+                        radius: 18,
+                      ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        post.authorName,
-                        style: TextStyle(
-                          color: bodyText,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
+                      if (post.isMine && widget.profile != null)
+                        ValueListenableBuilder<ProfileIdentity>(
+                          valueListenable: widget.profile!,
+                          builder: (_, identity, _) => Text(
+                            identity.name.isEmpty
+                                ? post.authorName
+                                : identity.name,
+                            style: TextStyle(
+                              color: bodyText,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
+                          ),
+                        )
+                      else
+                        Text(
+                          post.authorName,
+                          style: TextStyle(
+                            color: bodyText,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
-                      ),
                       Text(
                         '${post.audience} • ${post.createdAt == null ? 'Just now' : _relativeTime(post.createdAt!)}',
                         style: TextStyle(
@@ -1097,10 +1194,9 @@ class _HomeScreenState extends State<HomeScreen> {
         ...activeReactions.map(
           (reaction) => Padding(
             padding: const EdgeInsets.only(right: 3),
-            child: Icon(
-              _reactionIcons[reaction],
-              color: _homeActionColor,
-              size: 16,
+            child: Text(
+              _reactionEmojis[reaction]!,
+              style: const TextStyle(fontSize: 16),
             ),
           ),
         ),
@@ -1154,8 +1250,11 @@ class _HomeScreenState extends State<HomeScreen> {
                 onLongPress: onChooseReaction,
                 child: _postAction(
                   icon: isSelected
-                      ? _reactionIcons[selected]
-                      : Icons.thumb_up_alt_outlined,
+                      ? Text(
+                          _reactionEmojis[selected]!,
+                          style: const TextStyle(fontSize: 19),
+                        )
+                      : const Icon(Icons.thumb_up_alt_outlined),
                   label: isSelected ? selected : 'Like',
                 ),
               ),
@@ -1164,7 +1263,7 @@ class _HomeScreenState extends State<HomeScreen> {
               child: InkWell(
                 onTap: onComment,
                 child: _postAction(
-                  icon: Icons.mode_comment_outlined,
+                  icon: const Icon(Icons.mode_comment_outlined),
                   label: 'Comment',
                 ),
               ),
@@ -1172,7 +1271,10 @@ class _HomeScreenState extends State<HomeScreen> {
             Expanded(
               child: InkWell(
                 onTap: onShare,
-                child: _postAction(icon: Icons.share_outlined, label: 'Share'),
+                child: _postAction(
+                  icon: const Icon(Icons.share_outlined),
+                  label: 'Share',
+                ),
               ),
             ),
           ],
@@ -1182,13 +1284,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _postAction({required String label, required IconData? icon}) {
+  Widget _postAction({required String label, required Widget icon}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 12),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 18, color: _homeActionColor),
+          IconTheme(
+            data: const IconThemeData(size: 18, color: _homeActionColor),
+            child: icon,
+          ),
           const SizedBox(width: 6),
           Text(
             label,
@@ -1205,7 +1310,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildStoryCard(String name) {
     return Container(
-      width: 85,
+      width: 112,
       margin: const EdgeInsets.only(right: 10),
       child: GlassCard(
         padding: const EdgeInsets.all(8),
@@ -1236,7 +1341,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return GestureDetector(
       onTap: () => _openCloudStory(story),
       child: Container(
-        width: 85,
+        width: 112,
         margin: const EdgeInsets.only(right: 10),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(16),
@@ -1247,15 +1352,34 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Stack(
             fit: StackFit.expand,
             children: [
-              Image.network(
-                story['image_url'] as String,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
+              if (story['media_type'] == 'video')
+                Container(
                   color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                  child: Icon(
-                    Icons.broken_image_outlined,
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  child: const Center(
+                    child: Icon(Icons.play_circle_outline, size: 34),
                   ),
+                )
+              else
+                Image.network(
+                  story['image_url'] as String,
+                  fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) => Container(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.surfaceContainerHighest,
+                    child: Icon(
+                      Icons.broken_image_outlined,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+              Positioned(
+                left: 4,
+                top: 4,
+                child: ProfileAvatar(
+                  name: story['author_name'] as String,
+                  avatarUrl: story['author_avatar_url'] as String? ?? '',
+                  radius: 14,
                 ),
               ),
               Align(
@@ -1289,6 +1413,20 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+
+  Widget _myAvatar({double radius = 18}) {
+    final profile = widget.profile;
+    if (profile == null) return ProfileAvatar(radius: radius);
+    return ValueListenableBuilder<ProfileIdentity>(
+      valueListenable: profile,
+      builder: (_, identity, _) => ProfileAvatar(
+        name: identity.name,
+        avatarUrl: identity.avatarUrl,
+        photoData: identity.photoData,
+        radius: radius,
+      ),
+    );
+  }
 }
 
 class _HomePost {
@@ -1298,6 +1436,8 @@ class _HomePost {
     required this.imageBytes,
     this.id,
     this.authorName = 'You',
+    this.avatarUrl = '',
+    this.isMine = true,
     this.createdAt,
     this.imageUrl,
     Map<String, int>? reactions,
@@ -1318,6 +1458,8 @@ class _HomePost {
       },
       imageBytes: null,
       authorName: row['author_name'] as String,
+      avatarUrl: row['author_avatar_url'] as String? ?? '',
+      isMine: row['author_id'] == ZitfaceBackend.client.auth.currentUser?.id,
       createdAt: DateTime.tryParse(row['created_at'] as String),
       imageUrl: row['image_url'] as String?,
       reactions: Map<String, int>.from(row['reactions'] as Map),
@@ -1331,6 +1473,8 @@ class _HomePost {
   final String audience;
   final Uint8List? imageBytes;
   final String authorName;
+  final String avatarUrl;
+  final bool isMine;
   final DateTime? createdAt;
   final String? imageUrl;
   final Map<String, int> reactions;
@@ -1343,6 +1487,202 @@ class _StoryTrack {
 
   final String title;
   final String artist;
+}
+
+class _CloudStoryVideoPlayer extends StatefulWidget {
+  const _CloudStoryVideoPlayer({required this.url});
+
+  final String url;
+
+  @override
+  State<_CloudStoryVideoPlayer> createState() => _CloudStoryVideoPlayerState();
+}
+
+class _CloudStoryVideoPlayerState extends State<_CloudStoryVideoPlayer> {
+  late final VideoPlayerController _controller;
+  String? _errorMessage;
+  bool _isMuted = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url));
+    unawaited(_initialize());
+  }
+
+  Future<void> _initialize() async {
+    try {
+      await _controller.initialize();
+      await _controller.setLooping(false);
+      await _controller.setVolume(0);
+      await _controller.play();
+      if (mounted) setState(() {});
+    } on Exception catch (error) {
+      if (mounted) {
+        setState(() => _errorMessage = 'Could not play video: $error');
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Future<void> _togglePlayback() async {
+    if (_controller.value.isPlaying) {
+      await _controller.pause();
+    } else {
+      await _controller.play();
+    }
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _toggleMute() async {
+    _isMuted = !_isMuted;
+    await _controller.setVolume(_isMuted ? 0 : 1);
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_errorMessage != null) {
+      return Center(child: Text(_errorMessage!, textAlign: TextAlign.center));
+    }
+    if (!_controller.value.isInitialized) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Center(
+          child: AspectRatio(
+            aspectRatio: _controller.value.aspectRatio,
+            child: VideoPlayer(_controller),
+          ),
+        ),
+        IconButton.filledTonal(
+          tooltip: _controller.value.isPlaying ? 'Pause story' : 'Play story',
+          onPressed: _togglePlayback,
+          icon: Icon(
+            _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+          ),
+        ),
+        Positioned(
+          left: 8,
+          right: 8,
+          bottom: 8,
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: _isMuted ? 'Unmute story' : 'Mute story',
+                onPressed: _toggleMute,
+                icon: Icon(_isMuted ? Icons.volume_off : Icons.volume_up),
+                color: Colors.white,
+              ),
+              Expanded(
+                child: VideoProgressIndicator(
+                  _controller,
+                  allowScrubbing: true,
+                  colors: const VideoProgressColors(
+                    playedColor: Colors.white,
+                    bufferedColor: Colors.white54,
+                    backgroundColor: Colors.white24,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _CloudStoryAudioPlayer extends StatefulWidget {
+  const _CloudStoryAudioPlayer({required this.url});
+
+  final String url;
+
+  @override
+  State<_CloudStoryAudioPlayer> createState() => _CloudStoryAudioPlayerState();
+}
+
+class _CloudStoryAudioPlayerState extends State<_CloudStoryAudioPlayer> {
+  late final AudioPlayer _player;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _player = AudioPlayer();
+    unawaited(_loadAudio());
+  }
+
+  Future<void> _loadAudio() async {
+    try {
+      await _player.setUrl(widget.url);
+      await _player.setVolume(0.75);
+    } on Exception catch (error) {
+      if (mounted) setState(() => _errorMessage = 'Audio unavailable: $error');
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_player.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_errorMessage != null) {
+      return Padding(
+        padding: const EdgeInsets.all(12),
+        child: Text(_errorMessage!, maxLines: 2),
+      );
+    }
+    return StreamBuilder<PlayerState>(
+      stream: _player.playerStateStream,
+      initialData: _player.playerState,
+      builder: (context, snapshot) {
+        final isPlaying = snapshot.data?.playing ?? false;
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: isPlaying ? 'Pause soundtrack' : 'Play soundtrack',
+                onPressed: () => isPlaying ? _player.pause() : _player.play(),
+                icon: Icon(isPlaying ? Icons.pause : Icons.play_arrow),
+              ),
+              const Expanded(child: Text('Story soundtrack')),
+              StreamBuilder<Duration>(
+                stream: _player.positionStream,
+                initialData: Duration.zero,
+                builder: (context, positionSnapshot) {
+                  final duration = _player.duration ?? Duration.zero;
+                  final position = positionSnapshot.data ?? Duration.zero;
+                  return Text(
+                    '${_formatAudioTime(position)} / ${_formatAudioTime(duration)}',
+                    style: Theme.of(context).textTheme.labelSmall,
+                  );
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatAudioTime(Duration duration) {
+    final minutes = duration.inMinutes;
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
 }
 
 class _CommentsSheet extends StatefulWidget {

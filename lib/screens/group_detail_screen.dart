@@ -1,6 +1,7 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
+import '../widget/unavailable_feature.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final String groupName;
@@ -76,7 +77,7 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               color: Theme.of(context).colorScheme.onSurfaceVariant,
               size: 20,
             ),
-            onPressed: () {},
+            onPressed: () => showUnavailableFeature(context, 'Group options'),
           ),
         ],
       ),
@@ -195,11 +196,6 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                         context,
                       ).colorScheme.onSurface.withValues(alpha: 0.03),
                       borderRadius: BorderRadius.circular(18),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.06),
-                      ),
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

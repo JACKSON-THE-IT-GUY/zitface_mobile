@@ -1,6 +1,11 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
+import 'dart:typed_data';
+import '../widget/market_image.dart';
+import '../widget/profile_avatar.dart';
+import '../widget/unavailable_feature.dart';
+import 'package:share_plus/share_plus.dart';
 import '../services/zitface_backend.dart';
 import 'chat_detail_screen.dart';
 
@@ -12,6 +17,10 @@ class MarketDetailScreen extends StatelessWidget {
   final String imageTag;
   final String description;
   final String? sellerId;
+  final String sellerAvatarUrl;
+  final String sellerPhotoData;
+  final Uint8List? imageBytes;
+  final String? imageUrl;
 
   const MarketDetailScreen({
     super.key,
@@ -21,6 +30,10 @@ class MarketDetailScreen extends StatelessWidget {
     required this.location,
     required this.imageTag,
     this.sellerId,
+    this.sellerAvatarUrl = '',
+    this.sellerPhotoData = '',
+    this.imageBytes,
+    this.imageUrl,
     this.description =
         'Item is in great working condition. Available for pickup or handover near CBU main campus library or North Campus.',
   });
@@ -55,9 +68,24 @@ class MarketDetailScreen extends StatelessWidget {
           peerHandle: location,
           isOnline: !ZitfaceBackend.isConfigured,
           conversationId: conversationId,
+          peerAvatarUrl: sellerAvatarUrl,
         ),
       ),
     );
+  }
+
+  Future<void> _shareListing(BuildContext context) async {
+    try {
+      await SharePlus.instance.share(
+        ShareParams(text: '$title - $price\n$description'),
+      );
+    } on Exception catch (error) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not share listing: $error')),
+        );
+      }
+    }
   }
 
   @override
@@ -108,7 +136,7 @@ class MarketDetailScreen extends StatelessWidget {
                       Icons.share_outlined,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    onPressed: () {},
+                    onPressed: () => _shareListing(context),
                   ),
                 ],
               ),
@@ -129,34 +157,37 @@ class MarketDetailScreen extends StatelessWidget {
                           context,
                         ).colorScheme.onSurface.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.1),
-                        ),
                       ),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.shopping_bag_outlined,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                            size: 54,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            imageTag,
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              fontSize: 12,
+                      child: imageBytes != null || imageUrl != null
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(20),
+                              child: MarketImage(
+                                bytes: imageBytes,
+                                url: imageUrl,
+                              ),
+                            )
+                          : Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Icon(
+                                  Icons.shopping_bag_outlined,
+                                  color: Theme.of(
+                                    context,
+                                  ).colorScheme.onSurfaceVariant,
+                                  size: 54,
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  imageTag,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -241,22 +272,10 @@ class MarketDetailScreen extends StatelessWidget {
                       borderRadius: 16,
                       child: Row(
                         children: [
-                          Container(
-                            width: 40,
-                            height: 40,
-                            decoration: BoxDecoration(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurface.withValues(alpha: 0.08),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Center(
-                              child: Icon(
-                                Icons.person_outline,
-                                color: Theme.of(context).colorScheme.onSurface,
-                                size: 20,
-                              ),
-                            ),
+                          ProfileAvatar(
+                            name: seller,
+                            avatarUrl: sellerAvatarUrl,
+                            photoData: sellerPhotoData,
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -287,7 +306,10 @@ class MarketDetailScreen extends StatelessWidget {
                             ),
                           ),
                           OutlinedButton(
-                            onPressed: () {},
+                            onPressed: () => showUnavailableFeature(
+                              context,
+                              'Member profiles',
+                            ),
                             style: OutlinedButton.styleFrom(
                               side: BorderSide(
                                 color: Theme.of(

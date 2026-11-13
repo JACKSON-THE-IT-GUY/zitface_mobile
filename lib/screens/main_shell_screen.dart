@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../widget/glass_card.dart';
 import '../widget/glass_scaffold.dart';
+import '../widget/profile_avatar.dart';
+import '../services/profile_identity.dart';
 import 'groups_screen.dart';
 import 'home_screen.dart';
 import 'market_screen.dart';
@@ -19,23 +21,62 @@ class MainShellScreen extends StatefulWidget {
 
 class _MainShellScreenState extends State<MainShellScreen> {
   int _currentIndex = 0;
+  final ValueNotifier<int> _postSignal = ValueNotifier(0);
+  final ValueNotifier<int> _chatSignal = ValueNotifier(0);
+  final ValueNotifier<int> _homeSignal = ValueNotifier(0);
+  final ValueNotifier<int> _friendsSignal = ValueNotifier(0);
+  final ValueNotifier<int> _marketSignal = ValueNotifier(0);
+  final ValueNotifier<ProfileIdentity> _profile = ValueNotifier(
+    const ProfileIdentity(),
+  );
 
   late final List<Widget> _screens = [
-    HomeScreen(onProfileTap: _openProfileTab),
+    HomeScreen(
+      onProfileTap: _openProfileTab,
+      onPostPublished: () => _postSignal.value++,
+      onNavigate: _selectTab,
+      onProfileChanged: (profile) => _profile.value = profile,
+      profile: _profile,
+      refreshSignal: _homeSignal,
+    ),
     const MaterialsScreen(),
-    const FriendsScreen(),
+    FriendsScreen(refreshSignal: _friendsSignal),
     const GroupsScreen(),
-    const MarketplaceScreen(),
-    const ChatsScreen(),
-    const ProfileScreen(),
+    MarketplaceScreen(profile: _profile, refreshSignal: _marketSignal),
+    ChatsScreen(refreshSignal: _chatSignal),
+    ProfileScreen(
+      postSignal: _postSignal,
+      profile: _profile,
+      onMessagesTap: () => _selectTab(5),
+      onProfileChanged: (profile) => _profile.value = profile,
+    ),
   ];
+
+  @override
+  void dispose() {
+    _postSignal.dispose();
+    _chatSignal.dispose();
+    _homeSignal.dispose();
+    _friendsSignal.dispose();
+    _marketSignal.dispose();
+    _profile.dispose();
+    super.dispose();
+  }
+
+  void _selectTab(int index) {
+    if (index == 0) _homeSignal.value++;
+    if (index == 2) _friendsSignal.value++;
+    if (index == 4) _marketSignal.value++;
+    if (index == 5) _chatSignal.value++;
+    setState(() => _currentIndex = index);
+  }
 
   void _openProfileTab() {
     final profileIndex = _screens.indexWhere(
       (screen) => screen is ProfileScreen,
     );
     if (profileIndex < 0) return;
-    setState(() => _currentIndex = profileIndex);
+    _selectTab(profileIndex);
   }
 
   @override
@@ -86,7 +127,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
   Widget _buildWideNavigationRail() {
     return NavigationRail(
       selectedIndex: _currentIndex,
-      onDestinationSelected: (index) => setState(() => _currentIndex = index),
+      onDestinationSelected: _selectTab,
       extended: true,
       minExtendedWidth: 232,
       backgroundColor: Theme.of(context).colorScheme.surface,
@@ -102,41 +143,41 @@ class _MainShellScreenState extends State<MainShellScreen> {
           ),
         ),
       ),
-      destinations: const [
-        NavigationRailDestination(
+      destinations: [
+        const NavigationRailDestination(
           icon: Icon(Icons.home_outlined),
           selectedIcon: Icon(Icons.home),
           label: Text('Home'),
         ),
-        NavigationRailDestination(
+        const NavigationRailDestination(
           icon: Icon(Icons.menu_book_outlined),
           selectedIcon: Icon(Icons.menu_book),
           label: Text('Materials'),
         ),
-        NavigationRailDestination(
+        const NavigationRailDestination(
           icon: Icon(Icons.person_search_outlined),
           selectedIcon: Icon(Icons.person_search),
           label: Text('Friends'),
         ),
-        NavigationRailDestination(
+        const NavigationRailDestination(
           icon: Icon(Icons.group_outlined),
           selectedIcon: Icon(Icons.group),
           label: Text('Groups'),
         ),
-        NavigationRailDestination(
+        const NavigationRailDestination(
           icon: Icon(Icons.storefront_outlined),
           selectedIcon: Icon(Icons.storefront),
           label: Text('Market'),
         ),
-        NavigationRailDestination(
+        const NavigationRailDestination(
           icon: Icon(Icons.chat_bubble_outline),
           selectedIcon: Icon(Icons.chat_bubble),
           label: Text('Chats'),
         ),
         NavigationRailDestination(
-          icon: Icon(Icons.person_outline),
-          selectedIcon: Icon(Icons.person),
-          label: Text('Profile'),
+          icon: _navigationProfileAvatar(),
+          selectedIcon: _navigationProfileAvatar(),
+          label: const Text('Profile'),
         ),
       ],
     );
@@ -189,9 +230,7 @@ class _MainShellScreenState extends State<MainShellScreen> {
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: () {
-                  setState(() {
-                    _currentIndex = index;
-                  });
+                  _selectTab(index);
                 },
                 child: AnimatedContainer(
                   width: double.infinity,
@@ -215,15 +254,19 @@ class _MainShellScreenState extends State<MainShellScreen> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        isActive
-                            ? navItems[index]['activeIcon']
-                            : navItems[index]['icon'],
-                        color: isActive
-                            ? Theme.of(context).colorScheme.onSurface
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                        size: 19,
-                      ),
+                      index == 6
+                          ? _navigationProfileAvatar()
+                          : Icon(
+                              isActive
+                                  ? navItems[index]['activeIcon']
+                                  : navItems[index]['icon'],
+                              color: isActive
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Theme.of(
+                                      context,
+                                    ).colorScheme.onSurfaceVariant,
+                              size: 19,
+                            ),
                       const SizedBox(height: 2),
                       Text(
                         navItems[index]['label'],
@@ -246,6 +289,18 @@ class _MainShellScreenState extends State<MainShellScreen> {
             );
           }),
         ),
+      ),
+    );
+  }
+
+  Widget _navigationProfileAvatar() {
+    return ValueListenableBuilder<ProfileIdentity>(
+      valueListenable: _profile,
+      builder: (_, identity, _) => ProfileAvatar(
+        radius: 14,
+        name: identity.name,
+        avatarUrl: identity.avatarUrl,
+        photoData: identity.photoData,
       ),
     );
   }

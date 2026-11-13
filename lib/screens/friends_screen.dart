@@ -3,6 +3,8 @@ import 'package:zitface_mobile/services/zitface_backend.dart';
 import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../services/open_direct_chat.dart';
+import '../widget/profile_avatar.dart';
 
 class _StudentProfile {
   final String id;
@@ -11,6 +13,7 @@ class _StudentProfile {
   final String program;
   final int year;
   final String bio;
+  final String avatarUrl;
 
   const _StudentProfile({
     required this.id,
@@ -19,11 +22,14 @@ class _StudentProfile {
     required this.program,
     required this.year,
     required this.bio,
+    this.avatarUrl = '',
   });
 }
 
 class FriendsScreen extends StatefulWidget {
-  const FriendsScreen({super.key});
+  const FriendsScreen({super.key, this.refreshSignal});
+
+  final Listenable? refreshSignal;
 
   @override
   State<FriendsScreen> createState() => _FriendsScreenState();
@@ -93,7 +99,12 @@ class _FriendsScreenState extends State<FriendsScreen> {
   @override
   void initState() {
     super.initState();
+    widget.refreshSignal?.addListener(_refresh);
     _loadRequests();
+  }
+
+  void _refresh() {
+    if (_cloudMode) _loadRequests();
   }
 
   Future<void> _loadRequests() async {
@@ -112,6 +123,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                   program: '',
                   year: 0,
                   bio: profile['bio'] as String? ?? '',
+                  avatarUrl: profile['avatar_display_url'] as String? ?? '',
                 ),
               )
               .toList();
@@ -185,6 +197,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
 
   @override
   void dispose() {
+    widget.refreshSignal?.removeListener(_refresh);
     _searchController.dispose();
     super.dispose();
   }
@@ -300,7 +313,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                       const SizedBox(width: 6),
                       Expanded(
                         child: Text(
-                            _cloudMode
+                          _cloudMode
                               ? 'Profiles visible to your account. Requests are sent to the recipient.'
                               : 'Sample student profiles. Friend requests are saved on this device.',
                           style: TextStyle(
@@ -375,6 +388,13 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           student: student,
                           requestSent: requestSent,
                           onAddFriend: () => _sendRequest(student),
+                          onMessage: () => openDirectChat(
+                            context,
+                            name: student.name,
+                            handle: student.school,
+                            peerId: student.id,
+                            avatarUrl: student.avatarUrl,
+                          ),
                         );
                       },
                     ),
@@ -390,40 +410,27 @@ class _StudentCard extends StatelessWidget {
   final _StudentProfile student;
   final bool requestSent;
   final VoidCallback onAddFriend;
+  final VoidCallback onMessage;
 
   const _StudentCard({
     required this.student,
     required this.requestSent,
     required this.onAddFriend,
+    required this.onMessage,
   });
 
   @override
   Widget build(BuildContext context) {
-    final initials = student.name
-        .split(RegExp(r'\s+'))
-        .where((part) => part.isNotEmpty)
-        .take(2)
-        .map((part) => part[0].toUpperCase())
-        .join();
-
     return GlassCard(
       padding: const EdgeInsets.all(14),
       borderRadius: 18,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          CircleAvatar(
+          ProfileAvatar(
             radius: 25,
-            backgroundColor: Theme.of(
-              context,
-            ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
-            child: Text(
-              initials,
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            name: student.name,
+            avatarUrl: student.avatarUrl,
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -440,7 +447,7 @@ class _StudentCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 3),
                 Text(
-                    student.program.isEmpty
+                  student.program.isEmpty
                       ? student.school
                       : '${student.program} · Year ${student.year}',
                   style: TextStyle(
@@ -485,6 +492,11 @@ class _StudentCard extends StatelessWidget {
                     ).colorScheme.onSurfaceVariant,
                     visualDensity: VisualDensity.compact,
                   ),
+                ),
+                TextButton.icon(
+                  onPressed: onMessage,
+                  icon: const Icon(Icons.chat_bubble_outline, size: 16),
+                  label: const Text('Message'),
                 ),
               ],
             ),

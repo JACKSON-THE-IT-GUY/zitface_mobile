@@ -18,6 +18,20 @@ void main() {
     expect(find.byType(LoginScreen), findsOneWidget);
   });
 
+  testWidgets('resend confirmation requires Supabase configuration', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: LoginScreen()));
+    await tester.enterText(find.byType(TextField).first, 'student@example.com');
+    await tester.tap(find.text('Resend confirmation email'));
+    await tester.pump();
+
+    expect(
+      find.text('Configure Supabase to resend a confirmation email.'),
+      findsOneWidget,
+    );
+  });
+
   testWidgets(
     'signup requires Supabase configuration instead of fake success',
     (tester) async {

@@ -2,9 +2,14 @@ import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import '../widget/unavailable_feature.dart';
+import '../widget/profile_avatar.dart';
+import '../services/profile_identity.dart';
 
 class CreatePostScreen extends StatefulWidget {
-  const CreatePostScreen({super.key});
+  const CreatePostScreen({super.key, this.profile});
+
+  final ProfileIdentity? profile;
 
   @override
   State<CreatePostScreen> createState() => _CreatePostScreenState();
@@ -18,11 +23,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   String? _imageContentType;
   bool _isPickingImage = false;
 
-  final List<String> _audienceOptions = [
-    'Public',
-    'Friends',
-    'Only me',
-  ];
+  final List<String> _audienceOptions = ['Public', 'Friends', 'Only me'];
 
   @override
   void dispose() {
@@ -42,15 +43,19 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
       );
       if (image == null) return;
       final extension = image.name.split('.').last.toLowerCase();
-      final contentType = image.mimeType ?? switch (extension) {
-        'jpg' || 'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        _ => null,
-      };
-      if (!const {'image/jpeg', 'image/png', 'image/webp'}.contains(
-        contentType,
-      )) {
+      final contentType =
+          image.mimeType ??
+          switch (extension) {
+            'jpg' || 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            _ => null,
+          };
+      if (!const {
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+      }.contains(contentType)) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Choose a JPEG, PNG, or WebP image.')),
@@ -192,34 +197,20 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
               // User Info & Audience Dropdown Selector
               Row(
                 children: [
-                  Container(
-                    width: 44,
-                    height: 44,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Theme.of(
-                        context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.1),
-                      border: Border.all(
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.2),
-                      ),
-                    ),
-                    child: Center(
-                      child: Icon(
-                        Icons.person,
-                        color: Theme.of(context).colorScheme.onSurface,
-                        size: 22,
-                      ),
-                    ),
+                  ProfileAvatar(
+                    radius: 22,
+                    name: widget.profile?.name ?? '',
+                    avatarUrl: widget.profile?.avatarUrl ?? '',
+                    photoData: widget.profile?.photoData ?? '',
                   ),
                   const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Jackson Nsonga',
+                        widget.profile?.name.isNotEmpty == true
+                            ? widget.profile!.name
+                            : 'Your profile',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onSurface,
                           fontSize: 14,
@@ -378,12 +369,14 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
                   _buildActionButton(
                     icon: Icons.sell_outlined,
                     label: 'Tag Group',
-                    onTap: () {},
+                    onTap: () =>
+                        showUnavailableFeature(context, 'Group tagging'),
                   ),
                   _buildActionButton(
                     icon: Icons.location_on_outlined,
                     label: 'CBU Location',
-                    onTap: () {},
+                    onTap: () =>
+                        showUnavailableFeature(context, 'Location tagging'),
                   ),
                 ],
               ),

@@ -6,7 +6,12 @@ import 'package:image_picker/image_picker.dart';
 
 class EditProfileScreen extends StatefulWidget {
   final String currentName;
+  final String currentHandle;
   final String currentSchool;
+  final String currentProgram;
+  final String currentYearOfStudy;
+  final String currentInterests;
+  final String currentWebsite;
   final String currentBio;
   final String currentPhotoPath;
   final String currentPhotoData;
@@ -16,8 +21,13 @@ class EditProfileScreen extends StatefulWidget {
   const EditProfileScreen({
     super.key,
     required this.currentName,
-    required this.currentSchool,
-    required this.currentBio,
+    this.currentHandle = '',
+    this.currentSchool = '',
+    this.currentProgram = '',
+    this.currentYearOfStudy = '',
+    this.currentInterests = '',
+    this.currentWebsite = '',
+    this.currentBio = '',
     this.currentPhotoPath = '',
     this.currentPhotoData = '',
     this.currentAvatarUrl = '',
@@ -30,7 +40,12 @@ class EditProfileScreen extends StatefulWidget {
 
 class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
+  late TextEditingController _handleController;
   late TextEditingController _schoolController;
+  late TextEditingController _programController;
+  late TextEditingController _yearOfStudyController;
+  late TextEditingController _interestsController;
+  late TextEditingController _websiteController;
   late TextEditingController _bioController;
   final ImagePicker _imagePicker = ImagePicker();
   late String _photoPath;
@@ -42,7 +57,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.currentName);
+    _handleController = TextEditingController(text: widget.currentHandle);
     _schoolController = TextEditingController(text: widget.currentSchool);
+    _programController = TextEditingController(text: widget.currentProgram);
+    _yearOfStudyController = TextEditingController(
+      text: widget.currentYearOfStudy,
+    );
+    _interestsController = TextEditingController(text: widget.currentInterests);
+    _websiteController = TextEditingController(text: widget.currentWebsite);
     _bioController = TextEditingController(text: widget.currentBio);
     _photoPath = widget.currentPhotoPath;
     _photoData = widget.currentPhotoData;
@@ -52,7 +74,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
+    _handleController.dispose();
     _schoolController.dispose();
+    _programController.dispose();
+    _yearOfStudyController.dispose();
+    _interestsController.dispose();
+    _websiteController.dispose();
     _bioController.dispose();
     super.dispose();
   }
@@ -68,7 +95,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
     Navigator.pop(context, {
       'name': name,
+      'handle': _handleController.text.trim().replaceFirst(RegExp(r'^@'), ''),
       'school': _schoolController.text.trim(),
+      'program': _programController.text.trim(),
+      'yearOfStudy': _yearOfStudyController.text.trim(),
+      'interests': _interestsController.text.trim(),
+      'website': _websiteController.text.trim(),
       'bio': _bioController.text.trim(),
       'photoPath': _photoPath,
       'photoData': _photoData,
@@ -276,8 +308,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               ),
               const SizedBox(height: 14),
               _buildInputField(
-                label: 'CBU School / Major',
+                label: 'Username',
+                controller: _handleController,
+                prefixText: '@',
+              ),
+              const SizedBox(height: 14),
+              _buildInputField(
+                label: 'School / Faculty',
                 controller: _schoolController,
+              ),
+              const SizedBox(height: 14),
+              _buildInputField(
+                label: 'Program / Major',
+                controller: _programController,
+              ),
+              const SizedBox(height: 14),
+              _buildInputField(
+                label: 'Year of study',
+                controller: _yearOfStudyController,
+              ),
+              const SizedBox(height: 14),
+              _buildInputField(
+                label: 'Interests',
+                controller: _interestsController,
+                maxLines: 2,
+              ),
+              const SizedBox(height: 14),
+              _buildInputField(
+                label: 'Website or portfolio',
+                controller: _websiteController,
               ),
               const SizedBox(height: 14),
               _buildInputField(
@@ -324,6 +383,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     required String label,
     required TextEditingController controller,
     int maxLines = 1,
+    String? prefixText,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -357,7 +417,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               color: Theme.of(context).colorScheme.onSurface,
               fontSize: 14,
             ),
-            decoration: const InputDecoration(border: InputBorder.none),
+            decoration: InputDecoration(
+              border: InputBorder.none,
+              prefixText: prefixText,
+            ),
           ),
         ),
       ],

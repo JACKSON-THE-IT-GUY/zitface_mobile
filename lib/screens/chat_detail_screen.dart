@@ -3,12 +3,15 @@ import 'dart:async';
 import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import '../services/zitface_backend.dart';
+import '../services/demo_chats.dart';
+import '../widget/profile_avatar.dart';
 
 class ChatDetailScreen extends StatefulWidget {
   final String peerName;
   final String peerHandle;
   final bool isOnline;
   final String? conversationId;
+  final String peerAvatarUrl;
 
   const ChatDetailScreen({
     super.key,
@@ -16,6 +19,7 @@ class ChatDetailScreen extends StatefulWidget {
     required this.peerHandle,
     this.isOnline = true,
     this.conversationId,
+    this.peerAvatarUrl = '',
   });
 
   @override
@@ -26,48 +30,31 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
   final TextEditingController _messageController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
-  final List<Map<String, dynamic>> _messages = ZitfaceBackend.isConfigured
-      ? []
-      : [
-    {
-      'sender': 'peer',
-      'text': 'Hey! Is the CS150 study guide still available on your profile?',
-      'time': '10:42 AM',
-    },
-    {
-      'sender': 'me',
-      'text': 'Yeah man, uploaded it yesterday! Check under my latest posts.',
-      'time': '10:44 AM',
-    },
-    {
-      'sender': 'peer',
-      'text':
-          'Awesome, got it. Are you attending the lab session at Riverside later?',
-      'time': '10:45 AM',
-    },
-        ];
+  final List<Map<String, dynamic>> _messages = [];
   StreamSubscription<List<Map<String, dynamic>>>? _messagesSubscription;
 
   @override
   void initState() {
     super.initState();
+    if (!ZitfaceBackend.isConfigured) {
+      _messages.addAll(DemoChats.messagesFor(widget.peerName));
+    }
     if (ZitfaceBackend.isConfigured && widget.conversationId != null) {
-      _messagesSubscription = ZitfaceBackend.watchMessages(
-        widget.conversationId!,
-      ).listen(
-        (rows) {
-          if (!mounted) return;
-          setState(() {
-            _messages
-              ..clear()
-              ..addAll(rows.map(_messageFromRemote));
-          });
-          _scrollToBottom();
-        },
-        onError: (Object error) {
-          if (mounted) _showMessageError('load', error);
-        },
-      );
+      _messagesSubscription =
+          ZitfaceBackend.watchMessages(widget.conversationId!).listen(
+            (rows) {
+              if (!mounted) return;
+              setState(() {
+                _messages
+                  ..clear()
+                  ..addAll(rows.map(_messageFromRemote));
+              });
+              _scrollToBottom();
+            },
+            onError: (Object error) {
+              if (mounted) _showMessageError('load', error);
+            },
+          );
     }
   }
 
@@ -104,8 +91,11 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
       return;
     }
 
+    DemoChats.send(widget.peerName, widget.peerHandle, text);
     setState(() {
-      _messages.add({'sender': 'me', 'text': text, 'time': 'Just now'});
+      _messages
+        ..clear()
+        ..addAll(DemoChats.messagesFor(widget.peerName));
     });
 
     _messageController.clear();
@@ -163,18 +153,10 @@ class _ChatDetailScreenState extends State<ChatDetailScreen> {
           children: [
             Stack(
               children: [
-                CircleAvatar(
+                ProfileAvatar(
                   radius: 18,
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.1),
-                  child: Text(
-                    widget.peerName.isNotEmpty ? widget.peerName[0] : 'U',
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  name: widget.peerName,
+                  avatarUrl: widget.peerAvatarUrl,
                 ),
                 if (widget.isOnline)
                   Positioned(

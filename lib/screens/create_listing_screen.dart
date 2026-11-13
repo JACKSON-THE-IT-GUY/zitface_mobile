@@ -1,8 +1,12 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 
 class CreateListingScreen extends StatefulWidget {
-  const CreateListingScreen({super.key});
+  const CreateListingScreen({super.key, this.pickImage});
+
+  final Future<XFile?> Function()? pickImage;
 
   @override
   State<CreateListingScreen> createState() => _CreateListingScreenState();
@@ -14,6 +18,9 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
   final _descriptionController = TextEditingController();
   String _selectedCategory = 'Textbooks';
   String? _errorMessage;
+  Uint8List? _imageBytes;
+  String? _imageContentType;
+  bool _isPickingImage = false;
 
   final List<String> _categories = [
     'Textbooks',
@@ -36,12 +43,15 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
     final price = _priceController.text.trim();
 
     final priceAmount = double.tryParse(price);
-    if (title.isEmpty || priceAmount == null || priceAmount < 0) {
+    if (title.isEmpty ||
+        priceAmount == null ||
+        !priceAmount.isFinite ||
+        priceAmount < 0) {
       setState(() => _errorMessage = 'Enter a title and a valid price.');
       return;
     }
 
-    Navigator.pop(context, {
+    Navigator.pop(context, <String, Object?>{
       'title': title,
       'price': 'K$price',
       'priceAmount': price,
@@ -49,7 +59,60 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
       'description': _descriptionController.text.trim(),
       'time': 'Just now',
       'seller': 'You',
+      'imageBytes': _imageBytes,
+      'imageContentType': _imageContentType,
     });
+  }
+
+  Future<void> _pickImage() async {
+    if (_isPickingImage) return;
+    setState(() => _isPickingImage = true);
+    try {
+      final image =
+          await (widget.pickImage?.call() ??
+              ImagePicker().pickImage(
+                source: ImageSource.gallery,
+                maxWidth: 1600,
+                maxHeight: 1600,
+                imageQuality: 85,
+              ));
+      if (image == null) return;
+      final extension = image.name.split('.').last.toLowerCase();
+      final contentType =
+          image.mimeType ??
+          switch (extension) {
+            'jpg' || 'jpeg' => 'image/jpeg',
+            'png' => 'image/png',
+            'webp' => 'image/webp',
+            _ => null,
+          };
+      if (!const {
+        'image/jpeg',
+        'image/png',
+        'image/webp',
+      }.contains(contentType)) {
+        throw const FormatException('Choose a JPEG, PNG, or WebP image.');
+      }
+      final bytes = await image.readAsBytes();
+      if (bytes.isEmpty || bytes.lengthInBytes > 10485760) {
+        throw const FormatException(
+          'Listing images must be between 1 byte and 10 MB.',
+        );
+      }
+      if (!mounted) return;
+      setState(() {
+        _imageBytes = bytes;
+        _imageContentType = contentType;
+      });
+    } on Exception catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not select image: $error')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPickingImage = false);
+    }
   }
 
   @override
@@ -135,6 +198,34 @@ class _CreateListingScreenState extends State<CreateListingScreen> {
               ),
 
               const SizedBox(height: 20),
+
+              OutlinedButton.icon(
+                onPressed: _isPickingImage ? null : _pickImage,
+                icon: const Icon(Icons.add_photo_alternate_outlined),
+                label: Text(
+                  _imageBytes == null ? 'Add item photo' : 'Change item photo',
+                ),
+              ),
+              if (_imageBytes != null) ...[
+                const SizedBox(height: 8),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(14),
+                  child: Image.memory(
+                    _imageBytes!,
+                    height: 140,
+                    width: double.infinity,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                TextButton(
+                  onPressed: () => setState(() {
+                    _imageBytes = null;
+                    _imageContentType = null;
+                  }),
+                  child: const Text('Remove photo'),
+                ),
+              ],
+              const SizedBox(height: 16),
 
               // Category Selector
               Text(

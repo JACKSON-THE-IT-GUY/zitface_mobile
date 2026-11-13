@@ -3,7 +3,6 @@ import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'supabase_bootstrap.dart';
 
 class CloudProfile {
@@ -11,6 +10,10 @@ class CloudProfile {
     required this.displayName,
     required this.handle,
     required this.school,
+    required this.program,
+    required this.yearOfStudy,
+    required this.interests,
+    required this.website,
     required this.bio,
     required this.avatarUrl,
   });
@@ -20,6 +23,10 @@ class CloudProfile {
       displayName: json['display_name'] as String,
       handle: json['handle'] as String,
       school: json['school'] as String,
+      program: json['program'] as String? ?? '',
+      yearOfStudy: json['year_of_study'] as String? ?? '',
+      interests: json['interests'] as String? ?? '',
+      website: json['website'] as String? ?? '',
       bio: json['bio'] as String,
       avatarUrl: json['avatar_url'] as String? ?? '',
     );
@@ -28,6 +35,10 @@ class CloudProfile {
   final String displayName;
   final String handle;
   final String school;
+  final String program;
+  final String yearOfStudy;
+  final String interests;
+  final String website;
   final String bio;
   final String avatarUrl;
 }
@@ -40,6 +51,60 @@ class ZitfaceBackend {
 
   static SupabaseClient get client => Supabase.instance.client;
 
+  static String avatarStoragePath(String? avatar) {
+    if (avatar == null || avatar.isEmpty) return '';
+    final uri = Uri.tryParse(avatar);
+    if (uri?.hasAuthority == true) {
+      final segments = uri!.pathSegments;
+      final bucketIndex = segments.indexOf('avatars');
+      if (bucketIndex < 0 || bucketIndex == segments.length - 1) return '';
+      return segments.skip(bucketIndex + 1).join('/');
+    }
+    return avatar;
+  }
+
+  static Future<String> avatarUrlFor(Map<String, dynamic> profile) async {
+    final avatar = avatarStoragePath(profile['avatar_url'] as String?);
+    if (avatar.isEmpty) return '';
+    final url = await client.storage
+        .from('avatars')
+        .createSignedUrl(avatar, 300);
+    final updatedAt = profile['updated_at'] as String?;
+    if (updatedAt == null) return url;
+    final signedUri = Uri.parse(url);
+    return signedUri
+        .replace(
+          queryParameters: {...signedUri.queryParameters, 'v': updatedAt},
+        )
+        .toString();
+  }
+
+  static String avatarContentType(Uint8List bytes) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xff &&
+        bytes[1] == 0xd8 &&
+        bytes[2] == 0xff) {
+      return 'image/jpeg';
+    }
+    if (bytes.length >= 8 &&
+        bytes[0] == 0x89 &&
+        bytes[1] == 0x50 &&
+        bytes[2] == 0x4e &&
+        bytes[3] == 0x47 &&
+        bytes[4] == 0x0d &&
+        bytes[5] == 0x0a &&
+        bytes[6] == 0x1a &&
+        bytes[7] == 0x0a) {
+      return 'image/png';
+    }
+    if (bytes.length >= 12 &&
+        ascii.decode(bytes.sublist(0, 4), allowInvalid: true) == 'RIFF' &&
+        ascii.decode(bytes.sublist(8, 12), allowInvalid: true) == 'WEBP') {
+      return 'image/webp';
+    }
+    throw const FormatException('Choose a JPEG, PNG, or WebP profile photo.');
+  }
+
   static Future<CloudProfile> loadMyProfile() async {
     final user = client.auth.currentUser;
     if (user == null) {
@@ -48,7 +113,10 @@ class ZitfaceBackend {
 
     final row = await client
         .from('profiles')
-        .select('display_name, handle, school, bio, avatar_url')
+        .select(
+          'display_name, handle, school, program, year_of_study, interests, '
+          'website, bio, avatar_url, updated_at',
+        )
         .eq('id', user.id)
         .maybeSingle();
     if (row == null) {
@@ -59,15 +127,16 @@ class ZitfaceBackend {
     }
 
     final profile = CloudProfile.fromJson(row);
-    final avatar = profile.avatarUrl;
     return CloudProfile(
       displayName: profile.displayName,
       handle: profile.handle,
       school: profile.school,
+      program: profile.program,
+      yearOfStudy: profile.yearOfStudy,
+      interests: profile.interests,
+      website: profile.website,
       bio: profile.bio,
-      avatarUrl: avatar.isEmpty || Uri.tryParse(avatar)?.hasAuthority == true
-          ? avatar
-          : client.storage.from('avatars').getPublicUrl(avatar),
+      avatarUrl: await avatarUrlFor(row),
     );
   }
 
@@ -75,6 +144,10 @@ class ZitfaceBackend {
     required String displayName,
     required String handle,
     required String school,
+    String program = '',
+    String yearOfStudy = '',
+    String interests = '',
+    String website = '',
     required String bio,
     String photoData = '',
     bool removeAvatar = false,
@@ -98,16 +171,14 @@ class ZitfaceBackend {
     String? newAvatarPath;
     if (photoData.isNotEmpty) {
       final bytes = base64Decode(photoData);
+      final contentType = avatarContentType(bytes);
       newAvatarPath = '${user.id}/avatar.jpg';
       await client.storage
           .from('avatars')
           .uploadBinary(
             newAvatarPath,
             Uint8List.fromList(bytes),
-            fileOptions: const FileOptions(
-              contentType: 'image/jpeg',
-              upsert: true,
-            ),
+            fileOptions: FileOptions(contentType: contentType, upsert: true),
           );
     }
 
@@ -126,6 +197,10 @@ class ZitfaceBackend {
     final update = <String, dynamic>{
       'display_name': displayName.trim(),
       'school': school.trim(),
+      'program': program.trim(),
+      'year_of_study': yearOfStudy.trim(),
+      'interests': interests.trim(),
+      'website': website.trim(),
       'bio': bio.trim(),
     };
     if (normalizedHandle.isNotEmpty) {
@@ -141,12 +216,17 @@ class ZitfaceBackend {
         .from('profiles')
         .update(update)
         .eq('id', user.id)
-        .select('display_name, handle, school, bio, avatar_url')
+        .select(
+          'display_name, handle, school, program, year_of_study, interests, '
+          'website, bio, avatar_url, updated_at',
+        )
         .single();
 
     if (removeAvatar && newAvatarPath == null) {
       final oldAvatar = current['avatar_url'] as String?;
-      if (oldAvatar != null && oldAvatar.isNotEmpty && !oldAvatar.startsWith('http')) {
+      if (oldAvatar != null &&
+          oldAvatar.isNotEmpty &&
+          !oldAvatar.startsWith('http')) {
         await client.storage.from('avatars').remove([oldAvatar]);
       }
     }
@@ -156,10 +236,76 @@ class ZitfaceBackend {
       displayName: profile.displayName,
       handle: profile.handle,
       school: profile.school,
+      program: profile.program,
+      yearOfStudy: profile.yearOfStudy,
+      interests: profile.interests,
+      website: profile.website,
       bio: profile.bio,
-      avatarUrl: profile.avatarUrl.isEmpty
-          ? ''
-          : client.storage.from('avatars').getPublicUrl(profile.avatarUrl),
+      avatarUrl: await avatarUrlFor(row),
+    );
+  }
+
+  static Future<void> updateMyDisplayName(String displayName) async {
+    final user = client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Sign in before changing your display name.');
+    }
+    final normalizedName = displayName.trim();
+    if (normalizedName.isEmpty || normalizedName.length > 80) {
+      throw const FormatException(
+        'Display name must be between 1 and 80 characters.',
+      );
+    }
+
+    await client
+        .from('profiles')
+        .update({'display_name': normalizedName})
+        .eq('id', user.id);
+  }
+
+  static Future<void> changeMyPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final email = client.auth.currentUser?.email;
+    if (email == null || email.isEmpty) {
+      throw StateError('A password-based account is required.');
+    }
+    await client.auth.signInWithPassword(
+      email: email,
+      password: currentPassword,
+    );
+    await client.auth.updateUser(UserAttributes(password: newPassword));
+  }
+
+  static Future<bool> loadMyProfilePrivacy() async {
+    final user = client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Sign in before loading privacy settings.');
+    }
+    final row = await client
+        .from('profiles')
+        .select('is_private')
+        .eq('id', user.id)
+        .single();
+    return row['is_private'] as bool;
+  }
+
+  static Future<void> setMyProfilePrivacy(bool isPrivate) async {
+    final user = client.auth.currentUser;
+    if (user == null) {
+      throw StateError('Sign in before changing privacy settings.');
+    }
+    await client
+        .from('profiles')
+        .update({'is_private': isPrivate})
+        .eq('id', user.id);
+  }
+
+  static Future<void> deleteMyAccount({required String password}) async {
+    await client.functions.invoke(
+      'delete-account',
+      body: {'password': password},
     );
   }
 
@@ -188,11 +334,10 @@ class ZitfaceBackend {
         .toList();
     final profiles = await client
         .from('profiles')
-        .select('id, display_name')
+        .select('id, display_name, avatar_url, updated_at')
         .inFilter('id', authorIds);
-    final namesById = {
-      for (final profile in profiles)
-        profile['id'] as String: profile['display_name'] as String,
+    final profilesById = {
+      for (final profile in profiles) profile['id'] as String: profile,
     };
 
     final postIds = posts.map((post) => post['id'] as String).toList();
@@ -249,18 +394,23 @@ class ZitfaceBackend {
           .add(row['body'] as String);
     }
 
-    return posts
-        .map(
-          (post) => {
-            ...post,
-            'author_name': namesById[post['author_id']] ?? 'ZitFace member',
-            'image_url': mediaByPost[post['id']],
-            'reactions': reactionsByPost[post['id']] ?? <String, int>{},
-            'my_reaction': myReactionsByPost[post['id']],
-            'comments': commentsByPost[post['id']] ?? <String>[],
-          },
-        )
-        .toList();
+    return Future.wait(
+      posts.map(
+        (post) async => {
+          ...post,
+          'author_name':
+              profilesById[post['author_id']]?['display_name'] ??
+              'ZitFace member',
+          'author_avatar_url': profilesById[post['author_id']] == null
+              ? ''
+              : await avatarUrlFor(profilesById[post['author_id']]!),
+          'image_url': mediaByPost[post['id']],
+          'reactions': reactionsByPost[post['id']] ?? <String, int>{},
+          'my_reaction': myReactionsByPost[post['id']],
+          'comments': commentsByPost[post['id']] ?? <String>[],
+        },
+      ),
+    );
   }
 
   static Future<void> createPost({
@@ -283,9 +433,11 @@ class ZitfaceBackend {
       throw const FormatException('Post images must be 10 MB or smaller.');
     }
     if (imageBytes != null &&
-        !const {'image/jpeg', 'image/png', 'image/webp'}.contains(
-          imageContentType,
-        )) {
+        !const {
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+        }.contains(imageContentType)) {
       throw const FormatException('Choose a JPEG, PNG, or WebP image.');
     }
 
@@ -338,7 +490,11 @@ class ZitfaceBackend {
   static Future<List<Map<String, dynamic>>> loadStories() async {
     final rows = await client
         .from('stories')
-        .select('id, author_id, storage_path, caption, created_at, expires_at')
+        .select(
+          'id, author_id, storage_path, media_type, duration_seconds, '
+          'caption, visibility, audio_path, audio_content_type, created_at, '
+          'expires_at, story_views(count)',
+        )
         .gt('expires_at', DateTime.now().toUtc().toIso8601String())
         .order('created_at', ascending: false)
         .limit(50);
@@ -350,11 +506,10 @@ class ZitfaceBackend {
         .toList();
     final profiles = await client
         .from('profiles')
-        .select('id, display_name')
+        .select('id, display_name, avatar_url, updated_at')
         .inFilter('id', authorIds);
-    final namesById = {
-      for (final profile in profiles)
-        profile['id'] as String: profile['display_name'] as String,
+    final profilesById = {
+      for (final profile in profiles) profile['id'] as String: profile,
     };
 
     final stories = <Map<String, dynamic>>[];
@@ -363,10 +518,32 @@ class ZitfaceBackend {
         final imageUrl = await client.storage
             .from('story-media')
             .createSignedUrl(row['storage_path'] as String, 3600);
+        String? audioUrl;
+        final audioPath = row['audio_path'] as String?;
+        if (audioPath != null) {
+          try {
+            audioUrl = await client.storage
+                .from('story-audio')
+                .createSignedUrl(audioPath, 3600);
+          } on Exception {
+            audioUrl = null;
+          }
+        }
         stories.add({
           ...row,
-          'author_name': namesById[row['author_id']] ?? 'ZitFace member',
+          'author_name':
+              profilesById[row['author_id']]?['display_name'] ??
+              'ZitFace member',
+          'author_avatar_url': profilesById[row['author_id']] == null
+              ? ''
+              : await avatarUrlFor(profilesById[row['author_id']]!),
           'image_url': imageUrl,
+          'audio_url': audioUrl,
+          'views_count':
+              ((row['story_views'] as List?)?.firstOrNull
+                      as Map<String, dynamic>?)?['count']
+                  as int? ??
+              0,
         });
       } on Exception {
         // Skip unavailable media without hiding other stories.
@@ -376,36 +553,106 @@ class ZitfaceBackend {
   }
 
   static Future<void> createStory({
-    required Uint8List imageBytes,
+    required Uint8List mediaBytes,
+    required String mediaType,
     required String contentType,
+    int? durationSeconds,
     String caption = '',
+    String visibility = 'friends',
+    Uint8List? audioBytes,
+    String? audioContentType,
+    bool audioRightsConfirmed = false,
   }) async {
     final userId = client.auth.currentUser?.id;
     if (userId == null) {
       throw StateError('Sign in before creating a story.');
     }
-    if (imageBytes.isEmpty || imageBytes.lengthInBytes > 10485760) {
-      throw const FormatException('Story images must be between 1 byte and 10 MB.');
+    if (mediaBytes.isEmpty || mediaBytes.lengthInBytes > 52428800) {
+      throw const FormatException(
+        'Story media must be between 1 byte and 50 MB.',
+      );
     }
-    if (!const {'image/jpeg', 'image/png', 'image/webp'}.contains(contentType)) {
-      throw const FormatException('Choose a JPEG, PNG, or WebP story image.');
+    if (mediaType != 'image' && mediaType != 'video') {
+      throw const FormatException('Choose a photo or video story.');
+    }
+    final allowedTypes = mediaType == 'image'
+        ? const {'image/jpeg', 'image/png', 'image/webp'}
+        : const {'video/mp4', 'video/quicktime'};
+    if (!allowedTypes.contains(contentType)) {
+      throw FormatException(
+        mediaType == 'image'
+            ? 'Choose a JPEG, PNG, or WebP story image.'
+            : 'Choose an MP4 or MOV video.',
+      );
+    }
+    if ((mediaType == 'image' && durationSeconds != null) ||
+        (mediaType == 'video' &&
+            (durationSeconds == null ||
+                durationSeconds < 1 ||
+                durationSeconds > 60))) {
+      throw const FormatException('Story videos must be 1 to 60 seconds long.');
+    }
+    if (!const {'public', 'friends'}.contains(visibility)) {
+      throw const FormatException('Choose who can view this story.');
+    }
+    const allowedAudioTypes = {
+      'audio/mpeg',
+      'audio/mp4',
+      'audio/aac',
+      'audio/wav',
+      'audio/ogg',
+    };
+    if (audioBytes != null &&
+        (audioBytes.isEmpty ||
+            audioBytes.lengthInBytes > 10485760 ||
+            audioContentType == null ||
+            !allowedAudioTypes.contains(audioContentType))) {
+      throw const FormatException(
+        'Choose an MP3, M4A, AAC, WAV, or OGG soundtrack up to 10 MB.',
+      );
+    }
+    if (audioBytes != null && !audioRightsConfirmed) {
+      throw const FormatException(
+        'Confirm that you have rights to use this soundtrack.',
+      );
+    }
+    if (audioBytes == null &&
+        (audioContentType != null || audioRightsConfirmed)) {
+      throw const FormatException(
+        'Select a soundtrack before confirming rights.',
+      );
+    }
+    if (mediaType == 'image' &&
+        !const {
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+        }.contains(contentType)) {
+      throw const FormatException('Choose a valid story image.');
     }
     final normalizedCaption = caption.trim();
     if (normalizedCaption.length > 240) {
-      throw const FormatException('Story captions must be 240 characters or less.');
+      throw const FormatException(
+        'Story captions must be 240 characters or less.',
+      );
     }
 
     final randomSuffix = Random.secure().nextInt(1 << 32);
     final storagePath =
         '$userId/${DateTime.now().toUtc().microsecondsSinceEpoch}_$randomSuffix';
+    final audioPath = audioBytes == null ? null : '$storagePath/audio';
     final row = await client
         .from('stories')
         .insert({
           'author_id': userId,
           'storage_path': storagePath,
-          'media_type': 'image',
+          'media_type': mediaType,
+          'duration_seconds': durationSeconds,
           'caption': normalizedCaption,
-          'visibility': 'friends',
+          'visibility': visibility,
+          'audio_path': audioPath,
+          'audio_content_type': audioBytes == null ? null : audioContentType,
+          'audio_rights_confirmed': audioBytes != null && audioRightsConfirmed,
         })
         .select('id')
         .single();
@@ -416,10 +663,29 @@ class ZitfaceBackend {
           .from('story-media')
           .uploadBinary(
             storagePath,
-            imageBytes,
+            mediaBytes,
             fileOptions: FileOptions(contentType: contentType, upsert: false),
           );
+      if (audioBytes != null && audioPath != null && audioContentType != null) {
+        await client.storage
+            .from('story-audio')
+            .uploadBinary(
+              audioPath,
+              audioBytes,
+              fileOptions: FileOptions(
+                contentType: audioContentType,
+                upsert: false,
+              ),
+            );
+      }
     } on Exception {
+      try {
+        if (audioPath != null) {
+          await client.storage.from('story-audio').remove([audioPath]);
+        }
+      } on Exception {
+        // Preserve the original upload error if cleanup also fails.
+      }
       try {
         await client.from('stories').delete().eq('id', storyId);
       } on Exception {
@@ -427,6 +693,30 @@ class ZitfaceBackend {
       }
       rethrow;
     }
+  }
+
+  static Future<void> deleteStory({
+    required String storyId,
+    required String storagePath,
+  }) async {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) {
+      throw StateError('Sign in before deleting a story.');
+    }
+    final story = await client
+        .from('stories')
+        .select('id, audio_path')
+        .eq('id', storyId)
+        .eq('author_id', userId)
+        .maybeSingle();
+    if (story == null) return;
+
+    await client.storage.from('story-media').remove([storagePath]);
+    final audioPath = story['audio_path'] as String?;
+    if (audioPath != null) {
+      await client.storage.from('story-audio').remove([audioPath]);
+    }
+    await client.from('stories').delete().eq('id', storyId);
   }
 
   static Future<void> recordStoryView({
@@ -531,11 +821,26 @@ class ZitfaceBackend {
     }
     final rows = await client
         .from('profiles')
-        .select('id, display_name, school, bio')
+        .select('id, display_name, school, bio, avatar_url, updated_at')
         .neq('id', userId)
         .order('display_name')
         .limit(100);
-    return List<Map<String, dynamic>>.from(rows);
+    return Future.wait(
+      rows.map(
+        (row) async => <String, dynamic>{
+          ...row,
+          'avatar_display_url': await avatarUrlFor(row),
+        },
+      ),
+    );
+  }
+
+  static Future<int> loadMyPostCount() async {
+    final userId = client.auth.currentUser?.id;
+    if (userId == null) {
+      throw StateError('Sign in before loading contributions.');
+    }
+    return await client.from('posts').count().eq('author_id', userId);
   }
 
   static Future<Set<String>> loadSentFriendRequests() async {
@@ -606,7 +911,7 @@ class ZitfaceBackend {
         : List<Map<String, dynamic>>.from(
             await client
                 .from('profiles')
-                .select('id, display_name, school')
+                .select('id, display_name, school, avatar_url, updated_at')
                 .inFilter('id', peerIds),
           );
     final profilesById = {
@@ -626,33 +931,39 @@ class ZitfaceBackend {
       );
     }
 
-    return conversations.map((conversation) {
-      final conversationId = conversation['id'] as String;
-      final type = conversation['conversation_type'] as String;
-      final member = members.cast<Map<String, dynamic>?>().firstWhere(
-        (row) =>
-            row?['conversation_id'] == conversationId &&
-            row?['user_id'] != userId,
-        orElse: () => null,
-      );
-      final peer = profilesById[member?['user_id']];
-      final latest = latestMessageByConversation[conversationId];
-      return <String, dynamic>{
-        'id': conversationId,
-        'peer_id': member?['user_id'],
-        'name': type == 'group'
-            ? conversation['title'] as String? ?? 'Group conversation'
-            : peer?['display_name'] as String? ?? 'ZitFace member',
-        'school': type == 'group'
-            ? 'Group conversation'
-            : peer?['school'] as String? ?? '',
-        'message': latest?['body'] as String? ?? 'No messages yet',
-        'time': latest?['created_at'] as String? ?? conversation['created_at'],
-        'unread': 0,
-        'isOnline': false,
-        'avatarIcon': type == 'group' ? 'group' : 'person',
-      };
-    }).toList();
+    return Future.wait(
+      conversations.map((conversation) async {
+        final conversationId = conversation['id'] as String;
+        final type = conversation['conversation_type'] as String;
+        final member = members.cast<Map<String, dynamic>?>().firstWhere(
+          (row) =>
+              row?['conversation_id'] == conversationId &&
+              row?['user_id'] != userId,
+          orElse: () => null,
+        );
+        final peer = profilesById[member?['user_id']];
+        final latest = latestMessageByConversation[conversationId];
+        return <String, dynamic>{
+          'id': conversationId,
+          'peer_id': member?['user_id'],
+          'name': type == 'group'
+              ? conversation['title'] as String? ?? 'Group conversation'
+              : peer?['display_name'] as String? ?? 'ZitFace member',
+          'school': type == 'group'
+              ? 'Group conversation'
+              : peer?['school'] as String? ?? '',
+          'avatar_url': type == 'direct' && peer != null
+              ? await avatarUrlFor(peer)
+              : '',
+          'message': latest?['body'] as String? ?? 'No messages yet',
+          'time':
+              latest?['created_at'] as String? ?? conversation['created_at'],
+          'unread': 0,
+          'isOnline': false,
+          'avatarIcon': type == 'group' ? 'group' : 'person',
+        };
+      }),
+    );
   }
 
   static Stream<List<Map<String, dynamic>>> watchMessages(
@@ -687,7 +998,9 @@ class ZitfaceBackend {
   static Future<List<Map<String, dynamic>>> loadMarketListings() async {
     final rows = await client
         .from('market_listings')
-        .select('id, seller_id, title, price, category, description, created_at')
+        .select(
+          'id, seller_id, title, price, category, description, created_at, image_path',
+        )
         .eq('status', 'active')
         .order('created_at', ascending: false)
         .limit(100);
@@ -699,21 +1012,30 @@ class ZitfaceBackend {
         .toList();
     final sellers = await client
         .from('profiles')
-        .select('id, display_name')
+        .select('id, display_name, avatar_url, updated_at')
         .inFilter('id', sellerIds);
-    final sellerNames = {
-      for (final seller in sellers)
-        seller['id'] as String: seller['display_name'] as String,
+    final sellersById = {
+      for (final seller in sellers) seller['id'] as String: seller,
     };
 
-    return rows
-        .map(
-          (row) => {
-            ...row,
-            'seller': sellerNames[row['seller_id']] ?? 'ZitFace member',
-          },
-        )
-        .toList();
+    return Future.wait(
+      rows.map((row) async {
+        final path = row['image_path'] as String?;
+        return <String, dynamic>{
+          ...row,
+          'seller':
+              sellersById[row['seller_id']]?['display_name'] ??
+              'ZitFace member',
+          'seller_avatar_url': sellersById[row['seller_id']] == null
+              ? ''
+              : await avatarUrlFor(sellersById[row['seller_id']]!),
+          if (path != null)
+            'image_url': await client.storage
+                .from('market-media')
+                .createSignedUrl(path, 3600),
+        };
+      }),
+    );
   }
 
   static Future<Map<String, dynamic>> createMarketListing({
@@ -721,6 +1043,8 @@ class ZitfaceBackend {
     required String price,
     required String category,
     required String description,
+    Uint8List? imageBytes,
+    String? imageContentType,
   }) async {
     final userId = client.auth.currentUser?.id;
     if (userId == null) {
@@ -730,7 +1054,9 @@ class ZitfaceBackend {
     final normalizedDescription = description.trim();
     final normalizedPrice = double.tryParse(price.trim());
     if (normalizedTitle.isEmpty || normalizedTitle.length > 120) {
-      throw const FormatException('Title must be between 1 and 120 characters.');
+      throw const FormatException(
+        'Title must be between 1 and 120 characters.',
+      );
     }
     if (normalizedPrice == null ||
         !normalizedPrice.isFinite ||
@@ -747,21 +1073,83 @@ class ZitfaceBackend {
       throw const FormatException('Choose a valid listing category.');
     }
     if (normalizedDescription.length > 2000) {
-      throw const FormatException('Description must be 2000 characters or less.');
+      throw const FormatException(
+        'Description must be 2000 characters or less.',
+      );
+    }
+    if (imageBytes != null &&
+        (imageBytes.isEmpty || imageBytes.lengthInBytes > 10485760)) {
+      throw const FormatException(
+        'Listing images must be between 1 byte and 10 MB.',
+      );
+    }
+    if (imageBytes != null &&
+        !const {
+          'image/jpeg',
+          'image/png',
+          'image/webp',
+        }.contains(imageContentType)) {
+      throw const FormatException('Choose a JPEG, PNG, or WebP image.');
     }
 
-    final row = await client
-        .from('market_listings')
-        .insert({
-          'seller_id': userId,
-          'title': normalizedTitle,
-          'price': normalizedPrice,
-          'category': category,
-          'description': normalizedDescription,
-        })
-        .select('id, seller_id, title, price, category, description, created_at')
-        .single();
-    return {...row, 'seller': 'You'};
+    final profile = await loadMyProfile();
+    String? imagePath;
+    if (imageBytes != null) {
+      final random = Random.secure();
+      final token = List.generate(
+        16,
+        (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+      ).join();
+      imagePath = '$userId/$token/image';
+      await client.storage
+          .from('market-media')
+          .uploadBinary(
+            imagePath,
+            imageBytes,
+            fileOptions: FileOptions(
+              contentType: imageContentType,
+              upsert: false,
+            ),
+          );
+    }
+    try {
+      final imageUrl = imagePath == null
+          ? null
+          : await client.storage
+                .from('market-media')
+                .createSignedUrl(imagePath, 3600);
+      final row = await client
+          .from('market_listings')
+          .insert({
+            'seller_id': userId,
+            'title': normalizedTitle,
+            'price': normalizedPrice,
+            'category': category,
+            'description': normalizedDescription,
+            'image_path': imagePath,
+          })
+          .select(
+            'id, seller_id, title, price, category, description, created_at, image_path',
+          )
+          .single();
+      return {
+        ...row,
+        'seller': profile.displayName,
+        'seller_avatar_url': profile.avatarUrl,
+        'image_url': ?imageUrl,
+      };
+    } on Exception catch (error) {
+      if (imagePath != null) {
+        try {
+          await client.storage.from('market-media').remove([imagePath]);
+        } on Exception catch (cleanupError) {
+          throw StateError(
+            'Could not publish listing: $error. Image cleanup failed: $cleanupError',
+          );
+        }
+      }
+      rethrow;
+    }
   }
 
   static Future<Map<String, dynamic>> createAcademicCohort({

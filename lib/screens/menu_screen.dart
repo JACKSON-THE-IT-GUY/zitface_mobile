@@ -1,10 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:zitface_mobile/widget/glass_card.dart';
+import '../widget/unavailable_feature.dart';
+import '../widget/profile_avatar.dart';
+import '../services/profile_identity.dart';
 import '../theme/app_theme.dart';
 import '../services/zitface_backend.dart';
+import 'groups_screen.dart';
+import 'market_screen.dart';
+import 'profile_screen.dart';
+import 'account_settings_screen.dart';
+import 'legal_information_screen.dart';
 
 class MenuScreen extends StatelessWidget {
-  const MenuScreen({super.key});
+  const MenuScreen({
+    super.key,
+    this.onNavigate,
+    this.profile,
+    this.onProfileChanged,
+  });
+
+  final ValueChanged<int>? onNavigate;
+  final ValueListenable<ProfileIdentity>? profile;
+  final ValueChanged<ProfileIdentity>? onProfileChanged;
+
+  void _openSection(BuildContext context, int index, Widget fallback) {
+    if (onNavigate != null) {
+      Navigator.pop(context);
+      onNavigate!(index);
+    } else {
+      Navigator.push(
+        context,
+        MaterialPageRoute<void>(builder: (_) => fallback),
+      );
+    }
+  }
+
+  void _unavailable(BuildContext context, String feature) {
+    showUnavailableFeature(context, feature);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,63 +66,53 @@ class MenuScreen extends StatelessWidget {
               const SizedBox(height: 16),
 
               // Profile Card Header Shortcut
-              GlassCard(
-                padding: const EdgeInsets.all(12),
-                borderRadius: 16,
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44,
-                      height: 44,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        color: Theme.of(
-                          context,
-                        ).colorScheme.onSurface.withValues(alpha: 0.1),
-                        border: Border.all(
-                          color: Theme.of(
-                            context,
-                          ).colorScheme.onSurface.withValues(alpha: 0.2),
+              InkWell(
+                onTap: () => _openSection(context, 6, const ProfileScreen()),
+                child: GlassCard(
+                  padding: const EdgeInsets.all(12),
+                  borderRadius: 16,
+                  child: Row(
+                    children: [
+                      ProfileAvatar(
+                        radius: 22,
+                        name: profile?.value.name ?? '',
+                        avatarUrl: profile?.value.avatarUrl ?? '',
+                        photoData: profile?.value.photoData ?? '',
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              profile?.value.name.isNotEmpty == true
+                                  ? profile!.value.name
+                                  : 'Your profile',
+                              style: TextStyle(
+                                color: Theme.of(context).colorScheme.onSurface,
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            Text(
+                              'See your profile',
+                              style: TextStyle(
+                                color: Theme.of(
+                                  context,
+                                ).colorScheme.onSurfaceVariant,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      child: Center(
-                        child: Icon(
-                          Icons.person,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        ),
+                      Icon(
+                        Icons.arrow_forward_ios,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                        size: 14,
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Jackson Nsonga',
-                            style: TextStyle(
-                              color: Theme.of(context).colorScheme.onSurface,
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          Text(
-                            'See your profile',
-                            style: TextStyle(
-                              color: Theme.of(
-                                context,
-                              ).colorScheme.onSurfaceVariant,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.arrow_forward_ios,
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: 14,
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
 
@@ -118,24 +142,28 @@ class MenuScreen extends StatelessWidget {
                     Icons.groups_outlined,
                     'Groups',
                     'CBU Hubs',
+                    () => _openSection(context, 3, const GroupsScreen()),
                   ),
                   _buildShortcutCard(
                     context,
                     Icons.storefront_outlined,
                     'Marketplace',
                     'Campus Buy/Sell',
+                    () => _openSection(context, 4, const MarketplaceScreen()),
                   ),
                   _buildShortcutCard(
                     context,
                     Icons.bookmark_outline,
                     'Saved',
                     'Posts & Notes',
+                    () => _unavailable(context, 'Saved items'),
                   ),
                   _buildShortcutCard(
                     context,
                     Icons.event_outlined,
                     'Campus Events',
                     'ICTA & Guild',
+                    () => _unavailable(context, 'Campus events'),
                   ),
                 ],
               ),
@@ -173,14 +201,22 @@ class MenuScreen extends StatelessWidget {
                     context,
                     Icons.lock_outline,
                     'Privacy Shortcuts',
-                    onTap: () {},
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => AccountSettingsScreen(
+                          profile: profile?.value,
+                          onProfileChanged: onProfileChanged,
+                        ),
+                      ),
+                    ),
                   ),
                   _buildMenuItem(
                     context,
                     Icons.language_outlined,
                     'Language',
                     subtitle: 'English (US)',
-                    onTap: () {},
+                    onTap: () => _unavailable(context, 'Language settings'),
                   ),
                 ],
               ),
@@ -197,19 +233,24 @@ class MenuScreen extends StatelessWidget {
                     context,
                     Icons.help_center_outlined,
                     'Help Center',
-                    onTap: () {},
+                    onTap: () => _unavailable(context, 'Help center'),
                   ),
                   _buildMenuItem(
                     context,
                     Icons.report_problem_outlined,
                     'Report a Problem',
-                    onTap: () {},
+                    onTap: () => _unavailable(context, 'Problem reports'),
                   ),
                   _buildMenuItem(
                     context,
                     Icons.article_outlined,
                     'Terms & Policies',
-                    onTap: () {},
+                    onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                        builder: (_) => const LegalInformationScreen(),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -254,42 +295,46 @@ class MenuScreen extends StatelessWidget {
     IconData icon,
     String title,
     String subtitle,
+    VoidCallback onTap,
   ) {
-    return GlassCard(
-      padding: const EdgeInsets.all(12),
-      borderRadius: 14,
-      child: Row(
-        children: [
-          Icon(
-            icon,
-            color: Theme.of(context).colorScheme.onSurfaceVariant,
-            size: 22,
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    fontSize: 10,
-                  ),
-                ),
-              ],
+    return InkWell(
+      onTap: onTap,
+      child: GlassCard(
+        padding: const EdgeInsets.all(12),
+        borderRadius: 14,
+        child: Row(
+          children: [
+            Icon(
+              icon,
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+              size: 22,
             ),
-          ),
-        ],
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurface,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    subtitle,
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      fontSize: 10,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -444,7 +489,9 @@ class MenuScreen extends StatelessWidget {
                 if (!ZitfaceBackend.isConfigured) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Sign-out is unavailable in local demo mode.'),
+                      content: Text(
+                        'Sign-out is unavailable in local demo mode.',
+                      ),
                     ),
                   );
                   return;

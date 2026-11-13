@@ -1,12 +1,26 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
+import '../widget/market_image.dart';
+import '../widget/profile_avatar.dart';
+import '../services/profile_identity.dart';
 import '../services/zitface_backend.dart';
 import 'create_listing_screen.dart';
 import 'market_detail_screen.dart';
 
 class MarketplaceScreen extends StatefulWidget {
-  const MarketplaceScreen({super.key});
+  const MarketplaceScreen({
+    super.key,
+    this.pickImage,
+    this.profile,
+    this.refreshSignal,
+  });
+
+  final Future<XFile?> Function()? pickImage;
+  final ValueListenable<ProfileIdentity>? profile;
+  final Listenable? refreshSignal;
 
   @override
   State<MarketplaceScreen> createState() => _MarketplaceScreenState();
@@ -30,40 +44,50 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
   final List<Map<String, dynamic>> _listings = ZitfaceBackend.isConfigured
       ? []
       : [
-    {
-      'title': 'Engineering Maths Vol 1',
-      'price': 'K150',
-      'category': 'Textbooks',
-      'seller': 'Phanciah C.',
-      'time': '3 hours ago',
-    },
-    {
-      'title': 'HP EliteBook 840 G3 (8GB/256GB)',
-      'price': 'K3,800',
-      'category': 'Electronics',
-      'seller': 'Kabwe B.',
-      'time': '5 hours ago',
-    },
-    {
-      'title': 'Single Mattress + Cover',
-      'price': 'K450',
-      'category': 'Hostel Gear',
-      'seller': 'David M.',
-      'time': '1 day ago',
-    },
-    {
-      'title': 'CBU SICT Hoodie (XL)',
-      'price': 'K250',
-      'category': 'Apparel',
-      'seller': 'Jackson N.',
-      'time': '2 days ago',
-    },
+          {
+            'title': 'Engineering Maths Vol 1',
+            'price': 'K150',
+            'category': 'Textbooks',
+            'seller': 'Phanciah C.',
+            'time': '3 hours ago',
+          },
+          {
+            'title': 'HP EliteBook 840 G3 (8GB/256GB)',
+            'price': 'K3,800',
+            'category': 'Electronics',
+            'seller': 'Kabwe B.',
+            'time': '5 hours ago',
+          },
+          {
+            'title': 'Single Mattress + Cover',
+            'price': 'K450',
+            'category': 'Hostel Gear',
+            'seller': 'David M.',
+            'time': '1 day ago',
+          },
+          {
+            'title': 'CBU SICT Hoodie (XL)',
+            'price': 'K250',
+            'category': 'Apparel',
+            'seller': 'Jackson N.',
+            'time': '2 days ago',
+          },
         ];
 
   @override
   void initState() {
     super.initState();
+    widget.profile?.addListener(_profileChanged);
+    widget.refreshSignal?.addListener(_refresh);
     if (_cloudMode) _loadListings();
+  }
+
+  void _refresh() {
+    if (_cloudMode) _loadListings();
+  }
+
+  void _profileChanged() {
+    if (mounted) setState(() {});
   }
 
   Future<void> _loadListings() async {
@@ -98,7 +122,8 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
         : '${age.inDays} days ago';
     return {
       ...row,
-      'price': 'K${price.toStringAsFixed(price == price.roundToDouble() ? 0 : 2)}',
+      'price':
+          'K${price.toStringAsFixed(price == price.roundToDouble() ? 0 : 2)}',
       'seller': row['seller'] as String? ?? 'ZitFace member',
       'time': time,
     };
@@ -106,26 +131,30 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
   @override
   void dispose() {
+    widget.profile?.removeListener(_profileChanged);
+    widget.refreshSignal?.removeListener(_refresh);
     _searchController.dispose();
     super.dispose();
   }
 
   void _openCreateListing() async {
-    final newListing = await showModalBottomSheet<Map<String, String>>(
+    final newListing = await showModalBottomSheet<Map<String, Object?>>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (context) => const CreateListingScreen(),
+      builder: (context) => CreateListingScreen(pickImage: widget.pickImage),
     );
 
-    if (newListing == null) return;
+    if (newListing == null || !mounted) return;
     if (_cloudMode) {
       try {
         final row = await ZitfaceBackend.createMarketListing(
-          title: newListing['title']!,
-          price: newListing['priceAmount']!,
-          category: newListing['category']!,
-          description: newListing['description']!,
+          title: newListing['title']! as String,
+          price: newListing['priceAmount']! as String,
+          category: newListing['category']! as String,
+          description: newListing['description']! as String,
+          imageBytes: newListing['imageBytes'] as Uint8List?,
+          imageContentType: newListing['imageContentType'] as String?,
         );
         if (!mounted) return;
         setState(() => _listings.insert(0, _formatListing(row)));
@@ -145,11 +174,11 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
     final query = _searchController.text.trim().toLowerCase();
     final filteredListings = _listings.where((item) {
       final matchesCategory =
-        _activeCategory == 'All' || item['category'] == _activeCategory;
+          _activeCategory == 'All' || item['category'] == _activeCategory;
       final matchesQuery =
-        query.isEmpty ||
-        (item['title'] as String).toLowerCase().contains(query) ||
-        (item['seller'] as String).toLowerCase().contains(query);
+          query.isEmpty ||
+          (item['title'] as String).toLowerCase().contains(query) ||
+          (item['seller'] as String).toLowerCase().contains(query);
       return matchesCategory && matchesQuery;
     }).toList();
 
@@ -316,7 +345,7 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
 
             // Marketplace Grid
             Expanded(
-                child: _isLoadingListings
+              child: _isLoadingListings
                   ? const Center(child: CircularProgressIndicator())
                   : filteredListings.isEmpty
                   ? Center(
@@ -340,6 +369,18 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                       itemCount: filteredListings.length,
                       itemBuilder: (context, index) {
                         final item = filteredListings[index];
+                        final isMine = _cloudMode
+                            ? item['seller_id'] ==
+                                  ZitfaceBackend.client.auth.currentUser?.id
+                            : item['seller'] == 'You';
+                        final identity = isMine ? widget.profile?.value : null;
+                        final seller = identity?.name.isNotEmpty == true
+                            ? identity!.name
+                            : item['seller'] as String;
+                        final sellerAvatar =
+                            identity?.avatarUrl ??
+                            item['seller_avatar_url'] as String? ??
+                            '';
                         return InkWell(
                           borderRadius: BorderRadius.circular(18),
                           onTap: () => Navigator.push(
@@ -348,10 +389,14 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                               builder: (context) => MarketDetailScreen(
                                 title: item['title'] as String,
                                 price: item['price'] as String,
-                                seller: item['seller'] as String,
+                                seller: seller,
                                 sellerId: item['seller_id'] as String?,
+                                sellerAvatarUrl: sellerAvatar,
+                                sellerPhotoData: identity?.photoData ?? '',
                                 location: 'Location not provided',
                                 imageTag: 'No photo added',
+                                imageBytes: item['imageBytes'] as Uint8List?,
+                                imageUrl: item['image_url'] as String?,
                                 description:
                                     item['description'] as String? ?? '',
                               ),
@@ -361,83 +406,93 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
                             padding: const EdgeInsets.all(12),
                             borderRadius: 18,
                             child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Placeholder Image Box
-                              Expanded(
-                                child: Container(
-                                  width: double.infinity,
-                                  decoration: BoxDecoration(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.05),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Center(
-                                    child: Icon(
-                                      Icons.shopping_bag_outlined,
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                      size: 32,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Placeholder Image Box
+                                Expanded(
+                                  child: Container(
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.05),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(12),
+                                      child: MarketImage(
+                                        bytes: item['imageBytes'] as Uint8List?,
+                                        url: item['image_url'] as String?,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                              const SizedBox(height: 10),
+                                const SizedBox(height: 10),
 
-                              Text(
-                                item['title']!,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-
-                              Text(
-                                item['price']!,
-                                style: TextStyle(
-                                  color: Theme.of(
-                                    context,
-                                  ).colorScheme.onSurface,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 6),
-
-                              Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    item['seller']!,
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                      fontSize: 10,
-                                    ),
+                                Text(
+                                  item['title']!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                                  Text(
-                                    item['time']!,
-                                    style: TextStyle(
-                                      color: Theme.of(
-                                        context,
-                                      ).colorScheme.onSurfaceVariant,
-                                      fontSize: 9,
-                                    ),
+                                ),
+                                const SizedBox(height: 2),
+
+                                Text(
+                                  item['price']!,
+                                  style: TextStyle(
+                                    color: Theme.of(
+                                      context,
+                                    ).colorScheme.onSurface,
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w800,
                                   ),
-                                ],
-                              ),
-                            ],
+                                ),
+                                const SizedBox(height: 6),
+
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    ProfileAvatar(
+                                      radius: 10,
+                                      name: seller,
+                                      avatarUrl: sellerAvatar,
+                                      photoData: identity?.photoData ?? '',
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Expanded(
+                                      child: Text(
+                                        seller,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          color: Theme.of(
+                                            context,
+                                          ).colorScheme.onSurfaceVariant,
+                                          fontSize: 10,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 4),
+                                    Text(
+                                      item['time']!,
+                                      style: TextStyle(
+                                        color: Theme.of(
+                                          context,
+                                        ).colorScheme.onSurfaceVariant,
+                                        fontSize: 9,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                         );

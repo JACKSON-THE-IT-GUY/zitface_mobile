@@ -1,6 +1,7 @@
 import 'package:zitface_mobile/theme/app_theme.dart';
 import 'package:zitface_mobile/widget/glass_card.dart';
 import 'package:flutter/material.dart';
+import '../widget/unavailable_feature.dart';
 import '../services/zitface_backend.dart';
 
 class GroupHubScreen extends StatefulWidget {
@@ -131,7 +132,8 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                       Icons.more_horiz,
                       color: Theme.of(context).colorScheme.onSurfaceVariant,
                     ),
-                    onPressed: () {},
+                    onPressed: () =>
+                        showUnavailableFeature(context, 'Group options'),
                   ),
                 ],
               ),
@@ -286,50 +288,50 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                     if (!ZitfaceBackend.isConfigured) ...[
                       // Pinned Announcement
                       GlassCard(
-                      padding: const EdgeInsets.all(14),
-                      borderRadius: 16,
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Icon(
-                            Icons.push_pin_outlined,
-                            color: Theme.of(
-                              context,
-                            ).colorScheme.onSurfaceVariant,
-                            size: 18,
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Pinned Announcement',
-                                  style: TextStyle(
-                                    color: Theme.of(
-                                      context,
-                                    ).colorScheme.onSurface,
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                const SizedBox(height: 4),
-                                Text(
-                                  'End of semester project submission deadlines and lab hours updated for SICT students.',
-                                  style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.6),
-                                    fontSize: 12,
-                                  ),
-                                ),
-                              ],
+                        padding: const EdgeInsets.all(14),
+                        borderRadius: 16,
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Icon(
+                              Icons.push_pin_outlined,
+                              color: Theme.of(
+                                context,
+                              ).colorScheme.onSurfaceVariant,
+                              size: 18,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    'Pinned Announcement',
+                                    style: TextStyle(
+                                      color: Theme.of(
+                                        context,
+                                      ).colorScheme.onSurface,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'End of semester project submission deadlines and lab hours updated for SICT students.',
+                                    style: TextStyle(
+                                      color: Theme.of(context)
+                                          .colorScheme
+                                          .onSurface
+                                          .withValues(alpha: 0.6),
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
 
                       const SizedBox(height: 24),
                     ],
@@ -353,7 +355,9 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                         child: Text(
                           'Group discussions are not available yet.',
                           style: TextStyle(
-                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                            color: Theme.of(
+                              context,
+                            ).colorScheme.onSurfaceVariant,
                           ),
                         ),
                       )
@@ -407,9 +411,7 @@ class _GroupHubScreenState extends State<GroupHubScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Text(
-                author,
-              ),
+              Text(author),
               const Spacer(),
               Text(
                 time,

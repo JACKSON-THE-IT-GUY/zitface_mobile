@@ -69,7 +69,7 @@ void main() {
     await tester.ensureVisible(likeAction);
     await tester.tap(likeAction);
     await tester.pumpAndSettle();
-    expect(find.byIcon(Icons.thumb_up), findsNWidgets(2));
+    expect(find.textContaining(String.fromCharCode(0x1f44d)), findsNWidgets(2));
 
     final selectedLike = find.text('Like').last;
     await tester.longPress(selectedLike);

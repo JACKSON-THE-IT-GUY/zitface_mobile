@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import '../services/zitface_backend.dart';
+import '../services/demo_chats.dart';
+import '../widget/profile_avatar.dart';
 import 'chat_detail_screen.dart';
 
 class ChatsScreen extends StatefulWidget {
-  const ChatsScreen({super.key});
+  const ChatsScreen({super.key, this.refreshSignal});
+
+  final Listenable? refreshSignal;
 
   @override
   State<ChatsScreen> createState() => _ChatsScreenState();
@@ -20,67 +24,94 @@ class _ChatsScreenState extends State<ChatsScreen> {
   final List<Map<String, dynamic>> _activePeers = ZitfaceBackend.isConfigured
       ? []
       : [
-    {'name': 'SAM ', 'school': 'SICT', 'isOnline': true},
-    {'name': 'JOE', 'school': 'SOE', 'isOnline': true},
-    {'name': 'PHANSCIAH', 'school': 'SICT', 'isOnline': true},
-    {'name': 'MATEO', 'school': 'SMNS', 'isOnline': true},
-    {'name': 'PETER', 'school': 'SBE', 'isOnline': false},
-      ];
+          {'name': 'SAM ', 'school': 'SICT', 'isOnline': true},
+          {'name': 'JOE', 'school': 'SOE', 'isOnline': true},
+          {'name': 'PHANSCIAH', 'school': 'SICT', 'isOnline': true},
+          {'name': 'MATEO', 'school': 'SMNS', 'isOnline': true},
+          {'name': 'PETER', 'school': 'SBE', 'isOnline': false},
+        ];
 
-    final List<Map<String, dynamic>> _chatThreads = ZitfaceBackend.isConfigured
+  final List<Map<String, dynamic>> _chatThreads = ZitfaceBackend.isConfigured
       ? []
       : [
-    {
-      'name': 'Phanciah M.',
-      'school': 'Computer Science',
-      'message': 'Are we meeting at the main library later?',
-      'time': '12:42 PM',
-      'unread': 2,
-      'isOnline': true,
-      'avatarIcon': Icons.person_outline,
-    },
-    {
-      'name': 'ICTAZ Tech Group',
-      'school': 'SICT Official',
-      'message': 'Kondwani: The hackathon submission deadline was extended!',
-      'time': '10:15 AM',
-      'unread': 5,
-      'isOnline': false,
-      'avatarIcon': Icons.groups_outlined,
-    },
-    {
-      'name': 'Victor Mundia',
-      'school': 'Computer Science',
-      'message': 'Pushed the updated backend routes to GitHub.',
-      'time': 'Yesterday',
-      'unread': 0,
-      'isOnline': true,
-      'avatarIcon': Icons.code_rounded,
-    },
-    {
-      'name': 'Engineering Study Circle',
-      'school': 'SOE Community',
-      'message': 'Who has the past papers for Fluid Mechanics?',
-      'time': 'Yesterday',
-      'unread': 0,
-      'isOnline': false,
-      'avatarIcon': Icons.engineering_outlined,
-    },
-    {
-      'name': 'Jackson Nsonga',
-      'school': 'Built Environment',
-      'message': 'Thanks for the architecture project notes!',
-      'time': 'Monday',
-      'unread': 0,
-      'isOnline': false,
-      'avatarIcon': Icons.architecture_outlined,
-    },
+          {
+            'name': 'Phanciah M.',
+            'school': 'Computer Science',
+            'message': 'Are we meeting at the main library later?',
+            'time': '12:42 PM',
+            'unread': 2,
+            'isOnline': true,
+            'avatarIcon': Icons.person_outline,
+          },
+          {
+            'name': 'ICTAZ Tech Group',
+            'school': 'SICT Official',
+            'message':
+                'Kondwani: The hackathon submission deadline was extended!',
+            'time': '10:15 AM',
+            'unread': 5,
+            'isOnline': false,
+            'avatarIcon': Icons.groups_outlined,
+          },
+          {
+            'name': 'Victor Mundia',
+            'school': 'Computer Science',
+            'message': 'Pushed the updated backend routes to GitHub.',
+            'time': 'Yesterday',
+            'unread': 0,
+            'isOnline': true,
+            'avatarIcon': Icons.code_rounded,
+          },
+          {
+            'name': 'Engineering Study Circle',
+            'school': 'SOE Community',
+            'message': 'Who has the past papers for Fluid Mechanics?',
+            'time': 'Yesterday',
+            'unread': 0,
+            'isOnline': false,
+            'avatarIcon': Icons.engineering_outlined,
+          },
+          {
+            'name': 'Jackson Nsonga',
+            'school': 'Built Environment',
+            'message': 'Thanks for the architecture project notes!',
+            'time': 'Monday',
+            'unread': 0,
+            'isOnline': false,
+            'avatarIcon': Icons.architecture_outlined,
+          },
         ];
 
   @override
   void initState() {
     super.initState();
+    widget.refreshSignal?.addListener(_refresh);
+    if (!_cloudMode) {
+      DemoChats.changes.addListener(_loadDemoChats);
+      _loadDemoChats();
+    }
     if (_cloudMode) unawaited(_loadCloudChats());
+  }
+
+  void _refresh() {
+    if (_cloudMode) unawaited(_loadCloudChats());
+  }
+
+  void _loadDemoChats() {
+    setState(() {
+      for (final chat in DemoChats.chats) {
+        _chatThreads.removeWhere((thread) => thread['name'] == chat.name);
+        _chatThreads.insert(0, {
+          'name': chat.name,
+          'school': chat.school,
+          'message': chat.messages.last['text'],
+          'time': 'Just now',
+          'unread': 0,
+          'isOnline': false,
+          'avatarIcon': Icons.person_outline,
+        });
+      }
+    });
   }
 
   Future<void> _loadCloudChats() async {
@@ -110,6 +141,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                 'id': profile['id'],
                 'name': profile['display_name'],
                 'school': profile['school'] ?? '',
+                'avatar_url': profile['avatar_display_url'] ?? '',
                 'isOnline': false,
               },
             ),
@@ -129,7 +161,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
     final date = value == null ? null : DateTime.tryParse(value)?.toLocal();
     if (date == null) return '';
     final now = DateTime.now();
-    if (date.year == now.year && date.month == now.month && date.day == now.day) {
+    if (date.year == now.year &&
+        date.month == now.month &&
+        date.day == now.day) {
       final hour = date.hour % 12 == 0 ? 12 : date.hour % 12;
       return '$hour:${date.minute.toString().padLeft(2, '0')} ${date.hour < 12 ? 'AM' : 'PM'}';
     }
@@ -138,6 +172,8 @@ class _ChatsScreenState extends State<ChatsScreen> {
 
   @override
   void dispose() {
+    widget.refreshSignal?.removeListener(_refresh);
+    if (!_cloudMode) DemoChats.changes.removeListener(_loadDemoChats);
     _searchController.dispose();
     super.dispose();
   }
@@ -148,12 +184,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
     required bool isOnline,
     String? peerId,
     String? conversationId,
+    String avatarUrl = '',
   }) async {
     if (_cloudMode) {
       try {
-        conversationId ??= await ZitfaceBackend.openDirectConversation(
-          peerId!,
-        );
+        if (conversationId == null) {
+          if (peerId == null) {
+            throw StateError(
+              'The selected member is unavailable for messaging.',
+            );
+          }
+          conversationId = await ZitfaceBackend.openDirectConversation(peerId);
+        }
       } on Exception catch (error) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -163,7 +205,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
       }
     }
     if (!mounted) return;
-    Navigator.push(
+    await Navigator.push(
       context,
       MaterialPageRoute(
         builder: (context) => ChatDetailScreen(
@@ -171,9 +213,11 @@ class _ChatsScreenState extends State<ChatsScreen> {
           peerHandle: handle,
           isOnline: isOnline,
           conversationId: conversationId,
+          peerAvatarUrl: avatarUrl,
         ),
       ),
     );
+    if (mounted && _cloudMode) await _loadCloudChats();
   }
 
   void _showNewMessageSheet() {
@@ -200,16 +244,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
             ..._activePeers.map((peer) {
               final name = (peer['name'] as String).trim();
               return ListTile(
-                leading: CircleAvatar(
-                  backgroundColor: Theme.of(
-                    context,
-                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.08),
-                  child: Text(
-                    name.isEmpty ? '?' : name[0].toUpperCase(),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.onSurface,
-                    ),
-                  ),
+                leading: ProfileAvatar(
+                  name: name,
+                  avatarUrl: peer['avatar_url'] as String? ?? '',
                 ),
                 title: Text(
                   name,
@@ -234,6 +271,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     handle: peer['school'] as String,
                     isOnline: peer['isOnline'] as bool,
                     peerId: peer['id'] as String?,
+                    avatarUrl: peer['avatar_url'] as String? ?? '',
                   );
                 },
               );
@@ -388,31 +426,32 @@ class _ChatsScreenState extends State<ChatsScreen> {
                     ),
                   ),
                   const SizedBox(width: 8),
-                  if (!_cloudMode) ChoiceChip(
-                    label: Text(
-                      'Unread ${_chatThreads.where((chat) => (chat['unread'] as int) > 0).length}',
-                    ),
-                    selected: _showUnreadOnly,
-                    onSelected: (_) => setState(() => _showUnreadOnly = true),
-                    selectedColor: Theme.of(
-                      context,
-                    ).colorScheme.onSurface.withValues(alpha: 0.18),
-                    backgroundColor: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withValues(alpha: 0.04),
-                    labelStyle: TextStyle(
-                      color: _showUnreadOnly
-                          ? Theme.of(context).colorScheme.onSurface
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      fontSize: 12,
-                    ),
-                    side: BorderSide(
-                      color: Theme.of(
+                  if (!_cloudMode)
+                    ChoiceChip(
+                      label: Text(
+                        'Unread ${_chatThreads.where((chat) => (chat['unread'] as int) > 0).length}',
+                      ),
+                      selected: _showUnreadOnly,
+                      onSelected: (_) => setState(() => _showUnreadOnly = true),
+                      selectedColor: Theme.of(
                         context,
-                      ).colorScheme.onSurface.withValues(alpha: 0.08),
+                      ).colorScheme.onSurface.withValues(alpha: 0.18),
+                      backgroundColor: Theme.of(context)
+                          .colorScheme
+                          .surfaceContainerHighest
+                          .withValues(alpha: 0.04),
+                      labelStyle: TextStyle(
+                        color: _showUnreadOnly
+                            ? Theme.of(context).colorScheme.onSurface
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        fontSize: 12,
+                      ),
+                      side: BorderSide(
+                        color: Theme.of(
+                          context,
+                        ).colorScheme.onSurface.withValues(alpha: 0.08),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -449,42 +488,18 @@ class _ChatsScreenState extends State<ChatsScreen> {
                           name: name,
                           handle: peer['school'] as String,
                           isOnline: peer['isOnline'] as bool,
+                          peerId: peer['id'] as String?,
+                          avatarUrl: peer['avatar_url'] as String? ?? '',
                         ),
                         child: Column(
                           children: [
                             Stack(
                               children: [
-                                Container(
-                                  width: 52,
-                                  height: 52,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onSurface
-                                        .withValues(alpha: 0.08),
-                                    border: Border.all(
-                                      color: Theme.of(context)
-                                          .colorScheme
-                                          .onSurface
-                                          .withValues(alpha: 0.25),
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Center(
-                                    child: Text(
-                                      name.isEmpty
-                                          ? '?'
-                                          : name[0].toUpperCase(),
-                                      style: TextStyle(
-                                        color: Theme.of(
-                                          context,
-                                        ).colorScheme.onSurface,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  ),
+                                ProfileAvatar(
+                                  radius: 26,
+                                  name: name,
+                                  avatarUrl:
+                                      peer['avatar_url'] as String? ?? '',
                                 ),
                                 if (peer['isOnline'])
                                   Positioned(
@@ -563,7 +578,7 @@ class _ChatsScreenState extends State<ChatsScreen> {
                             ),
                             const SizedBox(height: 4),
                             Text(
-                                _cloudMode
+                              _cloudMode
                                   ? 'Start a new message to begin a conversation.'
                                   : 'Try another search or switch to All.',
                               style: TextStyle(
@@ -593,6 +608,9 @@ class _ChatsScreenState extends State<ChatsScreen> {
                               name: chat['name'] as String,
                               handle: chat['school'] as String,
                               isOnline: chat['isOnline'] as bool,
+                              peerId: chat['peer_id'] as String?,
+                              conversationId: chat['id'] as String?,
+                              avatarUrl: chat['avatar_url'] as String? ?? '',
                             );
                           },
                           child: Container(
@@ -605,38 +623,40 @@ class _ChatsScreenState extends State<ChatsScreen> {
                                   : Theme.of(context).colorScheme.onSurface
                                         .withValues(alpha: 0.03),
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: hasUnread
-                                    ? Theme.of(context).colorScheme.onSurface
-                                          .withValues(alpha: 0.18)
-                                    : Theme.of(context).colorScheme.onSurface
-                                          .withValues(alpha: 0.06),
-                              ),
                             ),
                             child: Row(
                               children: [
                                 Stack(
                                   children: [
-                                    Container(
-                                      width: 48,
-                                      height: 48,
-                                      decoration: BoxDecoration(
-                                        color: Theme.of(context)
-                                            .colorScheme
-                                            .onSurface
-                                            .withValues(alpha: 0.06),
-                                        borderRadius: BorderRadius.circular(14),
-                                      ),
-                                      child: Center(
-                                        child: Icon(
-                                          chat['avatarIcon'] as IconData,
-                                          color: Theme.of(
-                                            context,
-                                          ).colorScheme.onSurface,
-                                          size: 23,
-                                        ),
-                                      ),
-                                    ),
+                                    chat['avatarIcon'] == Icons.groups_outlined
+                                        ? Container(
+                                            width: 48,
+                                            height: 48,
+                                            decoration: BoxDecoration(
+                                              color: Theme.of(context)
+                                                  .colorScheme
+                                                  .onSurface
+                                                  .withValues(alpha: 0.06),
+                                              borderRadius:
+                                                  BorderRadius.circular(14),
+                                            ),
+                                            child: Center(
+                                              child: Icon(
+                                                chat['avatarIcon'] as IconData,
+                                                color: Theme.of(
+                                                  context,
+                                                ).colorScheme.onSurface,
+                                                size: 23,
+                                              ),
+                                            ),
+                                          )
+                                        : ProfileAvatar(
+                                            radius: 24,
+                                            name: chat['name'] as String,
+                                            avatarUrl:
+                                                chat['avatar_url'] as String? ??
+                                                '',
+                                          ),
                                     if (chat['isOnline'])
                                       Positioned(
                                         right: 0,
